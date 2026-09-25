@@ -61,3 +61,19 @@ async def test_password_hashing_runs_off_the_event_loop():
     t.cancel()
     assert results == [True, False] * 3
     assert ticks > 5
+
+
+def test_settings_accept_cloud_dsn_and_guard_production():
+    from pydantic import ValidationError
+
+    from tendoor.config import Settings
+
+    s = Settings(postgres_dsn="postgresql://u:p@db.railway.internal:5432/railway")
+    assert s.postgres_dsn == "postgresql+asyncpg://u:p@db.railway.internal:5432/railway"
+    assert Settings(postgres_dsn="postgres://u:p@h/db").postgres_dsn.startswith("postgresql+asyncpg://")
+
+    with pytest.raises(ValidationError, match="JWT_SECRET"):
+        Settings(env="production", cookie_secure=True)  # секрет за замовчуванням
+    with pytest.raises(ValidationError, match="COOKIE_SECURE"):
+        Settings(env="production", jwt_secret="x" * 48)
+    assert Settings(env="production", jwt_secret="x" * 48, cookie_secure=True).env == "production"

@@ -1,0 +1,9 @@
+# Railway: сервіс worker — той самий образ, інша команда (Settings → Config-as-code → /backend/railway.worker.toml)
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = ["/backend/**"]
+
+[deploy]
+startCommand = "python -m tendoor.worker"
+restartPolicyType = "ALWAYS"

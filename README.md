@@ -33,7 +33,25 @@ cd backend && uv sync && uv run alembic upgrade head && uv run uvicorn tendoor.a
 cd frontend && npm install && npm run dev      # http://localhost:5173
 ```
 
-Перевірки бекенду: `uv run pytest` (інтеграційні тести потребують запущеного Postgres), `uv run ruff check .`
+## Тести
+
+```bash
+cd backend && uv run pytest --cov      # інтеграційні тести створюють окрему базу tendoor_test
+cd frontend && npm test                # Vitest
+```
+
+Інтеграційні тести потребують запущених PostgreSQL і MongoDB (`docker compose up -d postgres mongo`), без них
+пропускаються; робочі бази не зачіпаються. CI (GitHub Actions) запускає ruff, pytest з обома базами, oxlint,
+Vitest, збирання фронтенду й образів.
+
+Навантажувальне тестування (Locust, сценарій аудитора й аналітика) — усередині мережі compose, від імені
+окремого користувача з роллю «Аудитор»:
+
+```bash
+TENDOOR_LOAD_PASSWORD=... docker compose --profile loadtest run --rm --no-deps locust -u 50 -r 5 -t 3m
+```
+
+Звіт — `loadtest/results/report.html`.
 
 ## Користувачі та ролі
 
@@ -55,19 +73,26 @@ docker compose exec api python -m tendoor.cli create-user --email admin@example.
 Модель навчається на вибірці у `worker` (зазвичай до хвилини); повторний запит з тими самими даними
 й параметрами повертається з кешу миттєво.
 
-Конвеєр v1 (`backend/src/tendoor/ml/pipeline.py`): ієрархічні групи «одиниця + код ДК 021» (малі
-піднімаються до категорії та класу) → семантичний поділ великих груп (лематизація, TF-IDF, K-Means за
-силуетом) → у кожній групі правило екстремумів, DBSCAN у просторі показників і модифіковане z-значення
-ціни → ризик-бал 0–100 і пояснення. Параметри за замовчуванням редагує адміністратор («Параметри аналізу»),
+Конвеєр v2 (`backend/src/tendoor/ml/pipeline.py`):
+1. **Групування.** Ієрархічні групи «одиниця + код ДК 021» (малі піднімаються до категорії та класу).
+   Фасовка з опису («5 л», «180 г», «20х2 г») перераховує ціни «штук» у грн/кг чи грн/л.
+2. **Семантичний поділ.** Великі групи діляться за текстом: лематизація, TF-IDF, K-Means з кількістю кластерів за силуетом.
+3. **Некерований етап.** У кожній групі правило екстремумів, DBSCAN у просторі показників і модифіковане z-значення ціни.
+4. **Калібратор.** Градієнтний бустинг, донавчений на вердиктах аудиторів (`ml/models/calibrator_v2.joblib`). Ризик-бал 0–100 — це ймовірність, що аудитор підтвердить аномалію.
+5. **Результат.** Пояснення в одиниці моделі.
+
+Параметри за замовчуванням редагує адміністратор («Параметри аналізу»);
 аналітик може перевизначити їх для окремого запиту.
 
-Оцінювання якості на синтетичних аномаліях проти базових методів (3σ, IQR): `tendoor.ml.evaluate`.
+Оцінювання якості:
+- `tendoor.ml.evaluate` — синтетичні аномалії проти 3σ та IQR;
+- `tendoor.ml.experiments` — зважена стратифікована розмітка аудиторів, крос-валідація калібратора,
+  з параметром `--save` донавчання.
 
 ## Синхронізація з Prozorro
 
-Завдання виконує `worker` (фід змін Prozorro → MongoDB → PostgreSQL):
+Завдання виконує `worker` (фід змін Prozorro → MongoDB → PostgreSQL).
 
-```bash
 В інтерфейсі: розділ «Синхронізація» (ролі Адміністратор і Аналітик). Або через API з токеном:
 
 ```bash
@@ -76,3 +101,32 @@ curl -X POST http://localhost:8000/api/sync/jobs -H "Authorization: Bearer $TOKE
 
 Період задається за датою зміни документа в Prozorro (близько 25 тис. змін на добу, ~10 хв синхронізації).
 Перерване завдання після перезапуску worker продовжується з того ж місця.
+
+## Розгортання (Railway + Vercel)
+
+Бекенд і бази — Railway, інтерфейс — Vercel. Vercel проксіює `/api/*` на Railway (`frontend/vercel.json`),
+тож для браузера це одне джерело: refresh-токен лишається в httpOnly cookie першої сторони, CORS не потрібен.
+
+**Railway** (проєкт з репозиторію GitHub):
+1. Додати бази **PostgreSQL** і **MongoDB** (шаблони Railway).
+2. Сервіс **api**: Root Directory `backend`, конфігурація `backend/railway.toml`. Публічний домен —
+   `tendoor-api.up.railway.app`. Якщо він зайнятий, змінити його й у `frontend/vercel.json`.
+3. Сервіс **worker**: той самий репозиторій і Root Directory `backend`,
+   Config-as-code `/backend/railway.worker.toml`. Публічний домен не потрібен.
+4. Змінні обох сервісів:
+
+   | Змінна | Значення |
+   |---|---|
+   | `TENDOOR_ENV` | `production` |
+   | `TENDOOR_POSTGRES_DSN` | `${{Postgres.DATABASE_URL}}` (схема `postgresql://` перетворюється на asyncpg автоматично) |
+   | `TENDOOR_MONGO_URI` | `${{MongoDB.MONGO_URL}}` |
+   | `TENDOOR_JWT_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+   | `TENDOOR_COOKIE_SECURE` | `true` |
+   | `FORWARDED_ALLOW_IPS` | `*` (лише api: IP клієнта з X-Forwarded-For для обмеження спроб входу) |
+
+   Без власного секрету чи з `COOKIE_SECURE=false` застосунок у `production` не стартує.
+5. Перший адміністратор: `railway ssh --service api`, далі
+   `python -m tendoor.cli create-user --email ... --name ... --role admin`.
+
+**Vercel**: імпортувати репозиторій, Root Directory `frontend`. Решту задає `vercel.json`: збирання Vite,
+проксі `/api`, SPA-маршрути, заголовки безпеки.

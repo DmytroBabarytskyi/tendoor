@@ -12,4 +12,5 @@ RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn tendoor.api.app:app --host 0.0.0.0 --port 8000"]
+# PORT задає хмарна платформа (Railway); FORWARDED_ALLOW_IPS — довірені проксі для X-Forwarded-For
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn tendoor.api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
