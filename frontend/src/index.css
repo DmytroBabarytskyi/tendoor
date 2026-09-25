@@ -1,0 +1,28 @@
+:root {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2328;
+  background: #f6f8fa;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+.subtitle {
+  color: #59636e;
+  margin-top: -8px;
+}
+
+.good {
+  color: #1a7f37;
+}
+
+.bad {
+  color: #cf222e;
+}

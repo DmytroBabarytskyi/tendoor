@@ -1,0 +1,33 @@
+# Дипломна документація та нотатки — не в репозиторії
+/docs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / фронтенд
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Середовище та секрети
+.env
+.env.*
+!.env.example
+
+# Артефакти моделей і дані
+/data/
+*.joblib
+
+# IDE / ОС
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
