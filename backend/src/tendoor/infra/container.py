@@ -8,9 +8,11 @@ from tendoor.infra.db import Databases
 from tendoor.infra.security import TokenService
 from tendoor.repositories.mongo.raw_tenders import MongoRawTenderRepository
 from tendoor.repositories.sql.access import SqlAuditRepository, SqlConfigRepository, SqlUserRepository
+from tendoor.repositories.sql.analysis import SqlAnalysisRepository
 from tendoor.repositories.sql.procurement import SqlProcurementRepository
 from tendoor.repositories.sql.sync_jobs import SqlSyncJobRepository
 from tendoor.services.auth import AuthService, LoginLimiter
+from tendoor.services.detection import DetectionService
 from tendoor.services.users import UserService
 
 
@@ -27,6 +29,8 @@ class Container:
     tokens: TokenService
     auth: AuthService
     user_service: UserService
+    analysis: SqlAnalysisRepository
+    detection: DetectionService
 
     @classmethod
     def build(cls, settings: Settings) -> "Container":
@@ -38,6 +42,8 @@ class Container:
             timedelta(minutes=settings.access_ttl_minutes),
             timedelta(days=settings.refresh_ttl_days),
         )
+        analysis = SqlAnalysisRepository(sf)
+        config = SqlConfigRepository(sf)
         limiter = LoginLimiter(settings.login_max_failures, settings.login_lock_minutes * 60)
         return cls(
             settings=settings,
@@ -47,10 +53,12 @@ class Container:
             sync_jobs=SqlSyncJobRepository(sf),
             users=users,
             audit=audit,
-            config=SqlConfigRepository(sf),
+            config=config,
             tokens=tokens,
             auth=AuthService(users, audit, tokens, limiter),
             user_service=UserService(users),
+            analysis=analysis,
+            detection=DetectionService(analysis, config, settings.model_dir),
         )
 
     async def close(self) -> None:

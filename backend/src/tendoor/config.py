@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     prozorro_url: str = "https://public-api.prozorro.gov.ua/api/2.5"
     prozorro_concurrency: int = 16
     worker_poll_seconds: float = 5.0
+    model_dir: str = "data/models"  # артефакти запусків конвеєра
 
 
 @lru_cache

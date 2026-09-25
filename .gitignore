@@ -22,7 +22,7 @@ dist/
 !.env.example
 
 # Артефакти моделей і дані
-/data/
+data/
 *.joblib
 
 # IDE / ОС

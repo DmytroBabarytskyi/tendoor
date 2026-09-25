@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -243,3 +244,90 @@ class AuditLog(Base):
     payload: Mapped[dict | None] = mapped_column(JSONB)
     ip: Mapped[str | None] = mapped_column(String(45))
     created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now(), index=True)
+
+
+# ---------------------------------------------------------------- виявлення аномалій (A2, Gold)
+
+
+class ModelRun(Base):
+    """Навчений запуск конвеєра; cache_key = хеш (вибірка, версія даних, версія конвеєра, параметри)."""
+
+    __tablename__ = "model_run"
+    __table_args__ = (CheckConstraint("status IN ('running', 'done', 'failed')", name="status"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    cache_key: Mapped[str] = mapped_column(String(64), unique=True)
+    pipeline_version: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(10), server_default="running")
+    params: Mapped[dict] = mapped_column(JSONB)
+    metrics: Mapped[dict | None] = mapped_column(JSONB)
+    artifact_path: Mapped[str | None] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+class AnalysisRequest(Base):
+    """Запит аудитора на аналіз вибірки (A2.1)."""
+
+    __tablename__ = "analysis_request"
+    __table_args__ = (CheckConstraint("status IN ('queued', 'running', 'done', 'failed')", name="status"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"), index=True)
+    model_run_id: Mapped[int | None] = mapped_column(ForeignKey("model_run.id", ondelete="SET NULL"))
+    cpv_prefixes: Mapped[list[str]] = mapped_column(ARRAY(String(10)))
+    unit_codes: Mapped[list[str]] = mapped_column(ARRAY(String(8)), server_default="{}")
+    date_from: Mapped[date] = mapped_column(Date)
+    date_to: Mapped[date] = mapped_column(Date)
+    params: Mapped[dict] = mapped_column(JSONB, server_default="{}")
+    cache_key: Mapped[str | None] = mapped_column(String(64))
+    homogeneity: Mapped[Decimal | None] = mapped_column(Numeric(5, 3))
+    homogeneity_details: Mapped[dict | None] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(10), server_default="queued", index=True)
+    from_cache: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+class Category(Base):
+    """Однорідна група позицій, сформована конвеєром у межах запуску."""
+
+    __tablename__ = "category"
+    __table_args__ = (UniqueConstraint("model_run_id", "label"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    model_run_id: Mapped[int] = mapped_column(ForeignKey("model_run.id", ondelete="CASCADE"))
+    label: Mapped[int] = mapped_column(Integer)
+    base_unit_code: Mapped[str] = mapped_column(String(8))
+    cpv_code: Mapped[str | None] = mapped_column(String(10))
+    top_terms: Mapped[list[str]] = mapped_column(ARRAY(Text))
+    size: Mapped[int] = mapped_column(Integer)
+    median_price: Mapped[Decimal | None] = mapped_column(PRICE)
+    analysed: Mapped[bool] = mapped_column(Boolean)
+    n_anomalies: Mapped[int] = mapped_column(Integer, server_default="0")
+    details: Mapped[dict | None] = mapped_column(JSONB)
+
+
+class AnomalyResult(Base):
+    """Результат оцінки позиції в запуску: мітка аномалії, ризик-бал, координати для візуалізації."""
+
+    __tablename__ = "anomaly_result"
+    __table_args__ = (
+        UniqueConstraint("model_run_id", "item_id"),
+        Index("ix_anomaly_result_queue", "model_run_id", "is_anomaly", "risk_score"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    model_run_id: Mapped[int] = mapped_column(ForeignKey("model_run.id", ondelete="CASCADE"))
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"), index=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey("category.id", ondelete="CASCADE"))
+    is_anomaly: Mapped[bool] = mapped_column(Boolean)
+    is_extreme: Mapped[bool] = mapped_column(Boolean)
+    is_noise: Mapped[bool] = mapped_column(Boolean)
+    risk_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    robust_z: Mapped[float | None] = mapped_column(Float)
+    price_ratio: Mapped[float | None] = mapped_column(Float)
+    pc1: Mapped[float | None] = mapped_column(Float)
+    pc2: Mapped[float | None] = mapped_column(Float)

@@ -2,6 +2,7 @@ import {
   AuditOutlined,
   CloudSyncOutlined,
   DashboardOutlined,
+  ExperimentOutlined,
   LogoutOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -18,6 +19,7 @@ type NavItem = { key: string; label: string; icon: ReactNode; roles: Role[] }
 // Пункти меню відповідають бізнес-процесам; видимість — за роллю користувача
 const NAV: NavItem[] = [
   { key: '/', label: 'Огляд', icon: <DashboardOutlined />, roles: ['admin', 'analyst', 'auditor'] },
+  { key: '/analysis', label: 'Аналіз аномалій', icon: <ExperimentOutlined />, roles: ['admin', 'analyst', 'auditor'] },
   { key: '/sync', label: 'Синхронізація', icon: <CloudSyncOutlined />, roles: ['admin', 'analyst'] },
   { key: '/users', label: 'Користувачі', icon: <TeamOutlined />, roles: ['admin'] },
   { key: '/settings', label: 'Параметри аналізу', icon: <SettingOutlined />, roles: ['admin'] },
@@ -42,7 +44,7 @@ export default function AppLayout() {
             цінові аномалії закупівель
           </Typography.Text>
         </div>
-        <Menu mode="inline" selectedKeys={[location.pathname]} items={items} onClick={(e) => navigate(e.key)} />
+        <Menu mode="inline" selectedKeys={[location.pathname.startsWith('/analysis') ? '/analysis' : location.pathname]} items={items} onClick={(e) => navigate(e.key)} />
       </Layout.Sider>
       <Layout>
         <Layout.Header

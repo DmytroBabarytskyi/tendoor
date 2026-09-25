@@ -44,6 +44,8 @@ services:
     environment:
       TENDOOR_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-tendoor}:${POSTGRES_PASSWORD:-tendoor}@postgres:5432/${POSTGRES_DB:-tendoor}
       TENDOOR_MONGO_URI: mongodb://mongo:27017
+      TENDOOR_MODEL_DIR: /data/models
+    volumes: [models:/data/models]
     depends_on:
       api: { condition: service_started }  # api накочує міграції під час старту
     restart: unless-stopped
@@ -56,3 +58,4 @@ services:
 volumes:
   pg_data:
   mongo_data:
+  models:

@@ -187,3 +187,78 @@ class FakeContainer:
         self.admin = self.users.add("admin@test.ua", "admin")
         self.analyst = self.users.add("analyst@test.ua", "analyst")
         self.auditor = self.users.add("auditor@test.ua", "auditor")
+        self.analysis = FakeAnalysis()
+        self.detection = FakeDetection(self.analysis)
+
+
+class FakeAnalysis:
+    """Репозиторій запитів аналізу в пам'яті."""
+
+    def __init__(self) -> None:
+        self.requests: dict[int, dict] = {}
+
+    def add(self, user_id, status="done", run_id=7) -> dict:
+        rid = len(self.requests) + 1
+        self.requests[rid] = {
+            "id": rid,
+            "user_id": user_id,
+            "status": status,
+            "cpv_prefixes": ["1531"],
+            "unit_codes": [],
+            "date_from": date(2026, 9, 1),
+            "date_to": date(2026, 9, 30),
+            "params": {},
+            "homogeneity": 0.8,
+            "homogeneity_details": {},
+            "model_run_id": run_id if status == "done" else None,
+            "from_cache": False,
+            "message": None,
+            "created_at": datetime.now(UTC),
+            "finished_at": None,
+            "cache_key": "k",
+        }
+        return self.requests[rid]
+
+    async def get_request(self, rid):
+        return self.requests.get(rid)
+
+    async def list_requests(self, user_id, limit=20):
+        return [r for r in self.requests.values() if user_id is None or r["user_id"] == user_id][:limit]
+
+    async def get_run(self, run_id):
+        return None
+
+    async def anomalies(self, run_id, only, cat, limit, offset):
+        row = {
+            "price_ratio": 4.0,
+            "median_price": 20.0,
+            "unit_price_base": 80.0,
+            "base_unit_code": "KGM",
+            "is_extreme": False,
+            "robust_z": 4.2,
+            "is_noise": True,
+            "is_anomaly": True,
+        }
+        return [row], 1
+
+    async def categories(self, run_id):
+        return [{"id": 1, "label": 0}]
+
+    async def points(self, run_id, cat):
+        return []
+
+    async def cpv_options(self, q, limit):
+        return [{"code": "15310000", "description": "Картопля", "level": 3, "n": 10}]
+
+
+class FakeDetection:
+    def __init__(self, analysis: FakeAnalysis) -> None:
+        self.analysis = analysis
+        self.submitted: list[tuple] = []
+
+    async def preview(self, f):
+        return {"n_items": 3, "homogeneity": {"index": 0.9, "level": "good"}}
+
+    async def submit(self, user_id, f, overrides=None):
+        self.submitted.append((user_id, f, overrides))
+        return self.analysis.add(user_id, status="queued")

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from tendoor import __version__
-from tendoor.api import admin, auth, health, sync
+from tendoor.api import admin, analysis, auth, health, sync
 from tendoor.config import Settings, get_settings
 from tendoor.infra.container import Container
 
@@ -53,6 +53,7 @@ def create_app(settings: Settings | None = None, container=None, probes: dict | 
     app.include_router(auth.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
     app.include_router(sync.router, prefix="/api")
+    app.include_router(analysis.router, prefix="/api")
     return app
 
 
