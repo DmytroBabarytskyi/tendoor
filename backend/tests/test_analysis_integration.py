@@ -11,8 +11,9 @@ from tendoor.config import Settings
 from tendoor.infra.db import Databases
 from tendoor.repositories.sql.access import SqlConfigRepository
 from tendoor.repositories.sql.analysis import AnalysisFilters, SqlAnalysisRepository
-from tendoor.repositories.sql.models import AnalysisRequest, ModelRun, ProcuringEntity, Tender
+from tendoor.repositories.sql.models import AnalysisRequest, ModelRun, ProcuringEntity, Tender, Verdict
 from tendoor.repositories.sql.procurement import SqlProcurementRepository
+from tendoor.repositories.sql.verdicts import SqlVerdictRepository
 from tendoor.services.detection import DetectionService
 from tendoor.services.normalization import EntityRec, ItemRec, NormalizedTender, cpv_chain
 
@@ -77,7 +78,8 @@ def _tender(i: int, price: float) -> NormalizedTender:
     )
 
 
-async def test_full_cycle_with_cache(dbs):
+async def _run_cycle(dbs):
+    """Дані → запит → навчання, як у worker. Повертає (repo, svc, filters, request)."""
     rng = np.random.default_rng(0)
     prices = list(50 * np.exp(rng.normal(0, 0.1, 40))) + [500.0]  # остання позиція в ~10 разів дорожча
     await SqlProcurementRepository(dbs.session_factory).save_tenders(
@@ -100,7 +102,11 @@ async def test_full_cycle_with_cache(dbs):
         claimed = await repo.claim_next_request()
     await svc.process(claimed)
 
-    done = await repo.get_request(req["id"])
+    return repo, svc, f, await repo.get_request(req["id"])
+
+
+async def test_full_cycle_with_cache(dbs):
+    repo, svc, f, done = await _run_cycle(dbs)
     assert done["status"] == "done" and done["model_run_id"]
     items, total = await repo.anomalies(done["model_run_id"], True, None, 10, 0)
     assert total >= 1
@@ -118,3 +124,33 @@ async def test_full_cycle_with_cache(dbs):
     # зміна параметрів — інший ключ кешу
     other = await svc.submit(None, f, {"z_strong": 5.0})
     assert other["status"] == "queued" and other["cache_key"] != again["cache_key"]
+
+
+async def test_item_card_verdicts_and_points(dbs):
+    """Картка позиції з аналогами, вердикт, пошук і статистика вердиктів, точки для графіка."""
+    repo, _, _, done = await _run_cycle(dbs)
+    run = done["model_run_id"]
+    top = (await repo.anomalies(run, True, None, 1, 0))[0][0]
+    verdicts = SqlVerdictRepository(dbs.session_factory)
+
+    card = await verdicts.item_card(top["item_id"], run)
+    assert card["result"]["model_unit"] == "KGM" and card["result"]["model_price"] == pytest.approx(500)
+    assert len(card["analogs"]) == 10 and all(a["item_id"] != top["item_id"] for a in card["analogs"])
+    assert (await verdicts.item_card(-1, run)) is None
+
+    try:
+        v = await verdicts.upsert(None, top["item_id"], top["result_id"], "confirmed", "overpriced", None)
+        rows, total = await verdicts.search("confirmed", "overpriced", None, 50, 0)
+        assert total >= 1 and any(r["id"] == v["id"] for r in rows)
+        assert any(r["status"] == "confirmed" for r in (await verdicts.stats())["by_status_reason"])
+        assert {"item_id": top["item_id"], "status": "confirmed", "reason": "overpriced"} in (
+            await verdicts.labels()
+        )
+        queue, _ = await repo.anomalies(run, True, None, 10, 0)
+        assert next(q for q in queue if q["item_id"] == top["item_id"])["verdict_status"] == "confirmed"
+    finally:
+        async with dbs.session_factory() as s, s.begin():
+            await s.execute(delete(Verdict).where(Verdict.item_id == top["item_id"]))
+
+    points = await repo.points(run, top["category_id"], 100)
+    assert len(points) == 41 and max(p["price"] for p in points) == pytest.approx(500)

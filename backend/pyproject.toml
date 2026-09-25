@@ -29,6 +29,7 @@ dependencies = [
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=7.1.0",
     "ruff>=0.8",
 ]
 
@@ -52,3 +53,12 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.coverage.run]
+source = ["tendoor"]
+# дослідницький скрипт експериментів запускається вручну на розмітці, а не в тестах
+omit = ["*/tendoor/ml/experiments.py"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
