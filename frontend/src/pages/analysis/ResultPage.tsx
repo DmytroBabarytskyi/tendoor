@@ -14,6 +14,7 @@ import {
   Table,
   Tag,
   Typography,
+  Tooltip,
 } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
@@ -236,7 +237,14 @@ export default function ResultPage() {
                 {
                   title: 'Ціна',
                   width: 150,
-                  render: (_, r) => `${money(r.unit_price_base)} грн/${r.base_unit_code}`,
+                  render: (_, r) =>
+                    r.pack_size ? (
+                      <Tooltip title={`У документі: ${money(r.unit_price_base)} грн/${r.base_unit_code}, фасовка ${r.pack_size}`}>
+                        {money(r.model_price ?? r.unit_price_base)} грн/{r.model_unit}*
+                      </Tooltip>
+                    ) : (
+                      `${money(r.model_price ?? r.unit_price_base)} грн/${r.model_unit ?? r.base_unit_code}`
+                    ),
                 },
                 {
                   title: 'Відхилення',

@@ -84,8 +84,9 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
         [
             [
                 float(a["risk_score"]) if a["risk_score"] is not None else None,
-                float(a["unit_price_base"]),
-                a["base_unit_code"],
+                # ціна в одиниці моделі — та сама, що й у медіани групи (v2 перераховує фасовку)
+                float(a["model_price"] if a.get("model_price") is not None else a["unit_price_base"]),
+                a.get("model_unit") or a["base_unit_code"],
                 float(a["median_price"]) if a["median_price"] is not None else None,
                 round(a["price_ratio"], 2) if a["price_ratio"] else None,
                 a["description"],

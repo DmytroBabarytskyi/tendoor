@@ -70,9 +70,9 @@ class SqlAnalysisRepository:
 
     async def load_selection(self, f: AnalysisFilters) -> pd.DataFrame:
         sql = f"""
-            SELECT i.id AS item_id, i.description_clean, i.cpv_code, i.base_unit_code,
+            SELECT i.id AS item_id, i.description, i.description_clean, i.cpv_code, i.base_unit_code,
                    i.unit_price_base::float AS unit_price_base, i.quantity_base::float AS quantity_base,
-                   t.date_published
+                   i.price_source, t.date_published
             FROM item i JOIN tender t ON t.id = i.tender_id
             WHERE {_WHERE}
             ORDER BY i.id
@@ -81,11 +81,13 @@ class SqlAnalysisRepository:
             rows = (await s.execute(text(sql), _params(f))).mappings().all()
         cols = [
             "item_id",
+            "description",
             "description_clean",
             "cpv_code",
             "base_unit_code",
             "unit_price_base",
             "quantity_base",
+            "price_source",
             "date_published",
         ]
         return pd.DataFrame(rows, columns=cols)
@@ -280,6 +282,9 @@ class SqlAnalysisRepository:
                     "price_ratio": _none_if_nan(r.ratio),
                     "pc1": _none_if_nan(r.pc1),
                     "pc2": _none_if_nan(r.pc2),
+                    "model_price": _none_if_nan(r.price),
+                    "model_unit": r.unit,
+                    "pack_size": _none_if_nan(r.pack_size) if r.pack_converted else None,
                 }
                 for r in items.itertuples(index=False)
             ]
@@ -338,7 +343,8 @@ class SqlAnalysisRepository:
     async def points(self, run_id: int, category_id: int, limit: int = 3000) -> list[dict]:
         """Точки для діаграм: PCA-проєкція, ціна, обсяг, мітка аномалії."""
         sql = """SELECT r.item_id, r.pc1, r.pc2, r.is_anomaly, r.is_extreme, r.risk_score,
-                        i.unit_price_base::float AS price, i.quantity_base::float AS quantity
+                        COALESCE(r.model_price, i.unit_price_base::float) AS price,
+                        COALESCE(i.quantity_base::float * r.pack_size, i.quantity_base::float) AS quantity
                  FROM anomaly_result r JOIN item i ON i.id = r.item_id
                  WHERE r.model_run_id = :run AND r.category_id = :cat
                  LIMIT :limit"""

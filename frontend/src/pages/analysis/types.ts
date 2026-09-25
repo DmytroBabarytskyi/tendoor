@@ -73,6 +73,10 @@ export type AnomalyRow = {
   description: string
   unit_price_base: number
   base_unit_code: string
+  // ціна в одиниці моделі (v2 перераховує фасовку «штук» у грн/кг, грн/л); null — результати v1
+  model_price: number | null
+  model_unit: string | null
+  pack_size: number | null
   quantity_base: number
   price_source: string
   cpv_code: string

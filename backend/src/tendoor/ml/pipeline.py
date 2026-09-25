@@ -26,9 +26,11 @@ from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler, normalize
 
+from tendoor.ml.calibration import add_features, load_calibrator
+from tendoor.ml.packaging import normalize_packs
 from tendoor.ml.text import lemmatize
 
-PIPELINE_VERSION = "v1"
+PIPELINE_VERSION = "v2"
 MAD_TO_SIGMA = 1.4826  # MAD → стандартне відхилення для нормального розподілу
 CPV_LEVELS = (8, 5, 4)  # код, категорія, клас ДК 021
 
@@ -75,7 +77,7 @@ class DetectionParams:
     min_group_size: int = 10
     cpv_grouping: bool = True
     text_split: bool = True
-    text_split_min: int = 60  # групи, більші за це, дорозбиваються за текстом
+    text_split_min: int = 30  # групи, більші за це, дорозбиваються за текстом (v2: 30 замість 60)
     k_max: int = 8
     silhouette_min: float = 0.15  # нижче — текстовий поділ вважається неінформативним
     dbscan_min_samples: int = 5
@@ -88,6 +90,11 @@ class DetectionParams:
     mad_floor: float = 0.15  # мінімальний розкид log-ціни (≈15 %): звичайні коливання ринку — не аномалія
     pca_variance: float = 0.9
     random_state: int = 42
+    # v2
+    pack_normalize: bool = True  # «штука/пачка/пляшка» з фасовкою в описі → грн/кг, грн/л
+    text_subgroup_min: int = 5  # мінімальна підгрупа текстового поділу (v2)
+    calibrate: bool = True  # ризик і рішення — від класифікатора, донавченого на вердиктах
+    anomaly_threshold: float | None = None  # None — поріг, підібраний крос-валідацією разом із калібратором
 
     @classmethod
     def from_dict(cls, d: dict) -> "DetectionParams":
@@ -124,13 +131,23 @@ class DetectionResult:
 # ---------------------------------------------------------------- підготовка
 
 
-def prepare(df: pd.DataFrame) -> pd.DataFrame:
-    """Вхід: item_id, description_clean, cpv_code, base_unit_code, unit_price_base, quantity_base,
-    date_published. Лишаються позиції з додатними ціною та обсягом."""
+def prepare(df: pd.DataFrame, p: DetectionParams | None = None) -> pd.DataFrame:
+    """Вхід: item_id, description (необов'язково), description_clean, cpv_code, base_unit_code,
+    unit_price_base, quantity_base, price_source (необов'язково), date_published.
+    Лишаються позиції з додатними ціною та обсягом."""
+    p = p or DetectionParams()
     d = df.copy()
     d["price"] = pd.to_numeric(d["unit_price_base"], errors="coerce").astype(float)
     d["qty"] = pd.to_numeric(d["quantity_base"], errors="coerce").astype(float)
     d = d[(d["price"] > 0) & (d["qty"] > 0)].copy()
+    raw = d["description"] if "description" in d else d["description_clean"]
+    d["description_raw"] = raw.fillna("").astype(str)
+    d["price_source"] = d["price_source"].fillna("unknown") if "price_source" in d else "unknown"
+    d["unit_original"] = d["base_unit_code"]
+    if p.pack_normalize:
+        d = normalize_packs(d)
+    else:
+        d["pack_size"], d["pack_converted"] = np.nan, False
     d["log_price"] = np.log(d["price"])
     d["log_qty"] = np.log(d["qty"])
     month = pd.to_datetime(d["date_published"], utc=True).dt.month
@@ -161,7 +178,7 @@ def split_by_text(texts: pd.Series, p: DetectionParams) -> tuple[np.ndarray, lis
         return np.zeros(n, dtype=int), [[]], None
     vocab = vec.get_feature_names_out()
     whole = [_top_terms(tfidf, vocab, np.ones(n, bool))]
-    k_max = min(p.k_max, n // p.min_group_size)
+    k_max = min(p.k_max, n // p.text_subgroup_min)
     if not p.text_split or n < p.text_split_min or k_max < 2 or tfidf.shape[1] < 3:
         return np.zeros(n, dtype=int), whole, None
 
@@ -177,7 +194,7 @@ def split_by_text(texts: pd.Series, p: DetectionParams) -> tuple[np.ndarray, lis
     best = None
     for k in range(2, k_max + 1):
         labels = KMeans(n_clusters=k, n_init=3, random_state=p.random_state).fit_predict(x)
-        if np.bincount(labels, minlength=k).min() < p.min_group_size or len(set(labels[sample])) < 2:
+        if np.bincount(labels, minlength=k).min() < p.text_subgroup_min or len(set(labels[sample])) < 2:
             continue  # у кожній підгрупі має бути достатньо позицій для статистики цін
         score = silhouette_score(x[sample], labels[sample])
         if best is None or score > best[1]:
@@ -288,6 +305,7 @@ def analyse_group(g: pd.DataFrame, p: DetectionParams) -> tuple[pd.DataFrame, di
     out["ratio"] = np.exp(lp - med)
     out["is_anomaly"] = out["is_extreme"] | (az >= p.z_strong) | (out["is_noise"] & (az >= p.min_price_z))
     out["risk"] = 100 * (1 - np.exp(-az / p.risk_scale))
+    out["group_spread"] = mad
     info["median_price"] = float(np.exp(med))
     return out, info
 
@@ -298,13 +316,22 @@ def analyse_group(g: pd.DataFrame, p: DetectionParams) -> tuple[pd.DataFrame, di
 def run_detection(df: pd.DataFrame, p: DetectionParams | None = None) -> DetectionResult:
     p = p or DetectionParams()
     started = time.perf_counter()
-    d = prepare(df)
+    d = prepare(df, p)
     group, groups = assign_groups(d, p)
 
-    items = pd.DataFrame({"item_id": d["item_id"], "group": group, "price": d["price"]})
+    items = pd.DataFrame(
+        {
+            "item_id": d["item_id"],
+            "group": group,
+            "price": d["price"],
+            "unit": d["base_unit_code"],
+            "pack_size": d["pack_size"],
+            "pack_converted": d["pack_converted"].astype(bool),
+        }
+    )
     for col, default in (("is_anomaly", False), ("is_extreme", False), ("is_noise", False)):
         items[col] = default
-    for col in ("robust_z", "ratio", "risk", "pc1", "pc2"):
+    for col in ("robust_z", "ratio", "risk", "pc1", "pc2", "group_spread"):
         items[col] = np.nan
 
     for gr in groups:
@@ -320,6 +347,21 @@ def run_detection(df: pd.DataFrame, p: DetectionParams | None = None) -> Detecti
 
     for col in ("is_anomaly", "is_extreme", "is_noise"):
         items[col] = items[col].astype(bool)
+    items["rule_anomaly"] = items["is_anomaly"]  # рішення першого (некерованого) етапу
+    items = add_features(items, d)
+
+    calibrator = load_calibrator() if p.calibrate else None
+    if calibrator is not None:
+        # другий етап: ризик — імовірність підтвердження аудитором (модель донавчена на вердиктах)
+        mask = items["risk"].notna()
+        if mask.any():
+            prob = calibrator.predict_proba(items.loc[mask])
+            items.loc[mask, "risk"] = 100 * prob
+            threshold = p.anomaly_threshold or calibrator.meta.get("threshold", 0.5)
+            items.loc[mask, "is_anomaly"] = prob >= threshold
+        counts = items[items["is_anomaly"]].groupby("group").size()
+        for gr in groups:
+            gr.n_anomalies = int(counts.get(gr.label, 0))
     analysed = int(items["risk"].notna().sum())
     n_anom = int(items["is_anomaly"].sum())
     sils = [g.silhouette for g in groups if g.silhouette is not None]
@@ -334,6 +376,8 @@ def run_detection(df: pd.DataFrame, p: DetectionParams | None = None) -> Detecti
         "n_groups": sum(1 for g in groups if g.analysed),
         "n_text_splits": len(set(sils)),
         "mean_silhouette": round(float(np.mean(sils)), 4) if sils else None,
+        "n_pack_converted": int(items["pack_converted"].sum()),
+        "calibrator": calibrator.meta.get("version") if calibrator is not None else None,
         "seconds": round(time.perf_counter() - started, 2),
     }
     return DetectionResult(items=items, groups=groups, metrics=metrics)

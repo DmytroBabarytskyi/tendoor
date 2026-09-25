@@ -24,6 +24,7 @@ dist/
 # Артефакти моделей і дані
 data/
 *.joblib
+!backend/src/tendoor/ml/models/*.joblib
 
 # IDE / ОС
 .idea/

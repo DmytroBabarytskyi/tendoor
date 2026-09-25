@@ -183,15 +183,21 @@ async def points(request_id: int, category_id: int, user: CurrentUser, request: 
     return await _repo(request).points(await _run_of(request, request_id, user), category_id)
 
 
+_PACK_UNIT = {"KGM": "кг", "LTR": "л"}
+
+
 def explain(r: dict) -> str:
     """Пояснення для аудитора простою мовою."""
     if r["price_ratio"] is None:
         return "Група замала для статистичного порівняння цін."
     ratio, med = r["price_ratio"], float(r["median_price"] or 0)
-    unit = r["base_unit_code"]
+    # v2 порівнює ціну в одиниці моделі: «штука» з фасовкою в описі перераховується в грн/кг, грн/л
+    unit = r.get("model_unit") or r["base_unit_code"]
+    price = float(r["model_price"] if r.get("model_price") is not None else r["unit_price_base"])
     direction = f"у {ratio:.1f} раза вища" if ratio >= 1 else f"у {1 / ratio:.1f} раза нижча"
-    price = float(r["unit_price_base"])
     text = f"Ціна {price:.2f} грн/{unit} {direction} за медіану групи ({med:.2f} грн/{unit})"
+    if r.get("pack_size"):
+        text += f" — перераховано з фасовки {float(r['pack_size']):g} {_PACK_UNIT.get(unit, unit)}"
     reasons = []
     if r["is_extreme"]:
         reasons.append("екстремальне значення (поза межами Q1−3·IQR…Q3+3·IQR)")

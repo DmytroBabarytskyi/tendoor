@@ -331,6 +331,10 @@ class AnomalyResult(Base):
     price_ratio: Mapped[float | None] = mapped_column(Float)
     pc1: Mapped[float | None] = mapped_column(Float)
     pc2: Mapped[float | None] = mapped_column(Float)
+    # ціна та одиниця, з якими працювала модель (v2 перераховує фасовку «штук» у грн/кг, грн/л)
+    model_price: Mapped[float | None] = mapped_column(Float)
+    model_unit: Mapped[str | None] = mapped_column(String(8))
+    pack_size: Mapped[float | None] = mapped_column(Float)
 
 
 # ---------------------------------------------------------------- аудит і звітність (A3)
