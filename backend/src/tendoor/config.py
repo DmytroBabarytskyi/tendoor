@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     mongo_db: str = "tendoor"
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    prozorro_url: str = "https://public-api.prozorro.gov.ua/api/2.5"
+    prozorro_concurrency: int = 16
+    worker_poll_seconds: float = 5.0
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -1,0 +1,324 @@
+{
+ "date": "2026-09-25T17:35:04.866053+03:00",
+ "dateModified": "2026-09-25T17:35:04.866053+03:00",
+ "dateCreated": "2026-09-25T17:35:03.106208+03:00",
+ "tenderID": "UA-2026-09-25-014016-a",
+ "owner": "netcast.com.ua",
+ "title": "Сувенірна продукція",
+ "mainProcurementCategory": "goods",
+ "procurementMethod": "limited",
+ "procurementMethodType": "reporting",
+ "procuringEntity": {
+  "name": "Національний музей космонавтики ім. С.П. Корольова Житомирської обласної ради",
+  "identifier": {
+   "scheme": "UA-EDR",
+   "id": "04813361",
+   "legalName": "Національний музей космонавтики ім. С.П. Корольова Житомирської обласної ради"
+  },
+  "address": {
+   "streetAddress": "Дмитрівська 5",
+   "locality": "Житомир",
+   "region": "Житомирська область",
+   "postalCode": "10008",
+   "countryName": "Україна"
+  },
+  "kind": "general"
+ },
+ "items": [
+  {
+   "id": "747268156c13697458e7aa2769a1b1ab",
+   "description": "Брелок «Космонавт на місяці»",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 20.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "093abd36f900ed15b94318aaf524c4c9",
+   "description": "Брелок «Ракета» резиновий",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 44.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "d32ad38e1d621b67d6abb76a848fbf83",
+   "description": "Іграшка «Ракета»",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 12.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "6d91ab3ae1e084209349960553d9bbed",
+   "description": "Кулон",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 15.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "cb7e082b787591533390c022091d1fa5",
+   "description": "Брелок подвійний золотий",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 38.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "23e11738f8a160853375aa8fb1f98958",
+   "description": "Брелок на рюкзак",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 43.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "cb170e0f51a7cd4d2c06ffcf9c2bae8f",
+   "description": "Набір космонавтів",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 12.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "a7f84976db225d696e7e22645d750587",
+   "description": "Гра «Балансуючі космонавти»",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 2.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "34055fcbafee078cd1f835ddf20c4270",
+   "description": "Ручка кулькова (10 кольорів)",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 20.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "71cc3e0f941f3af1a0a7c67b921a740c",
+   "description": "Ретро-брелок",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 9.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "c5cccb42fb03a3b104af7872f1cf8307",
+   "description": "Обертова куля робот- пальчик",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 9.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "12f0f1cdd7ed692cbb9d824d6403e3f7",
+   "description": "Наклейка «Космонавт»",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 480.0,
+   "classification": {
+    "description": "Подарунки та нагороди",
+    "scheme": "ДК021",
+    "id": "18530000-3"
+   },
+   "deliveryDate": {
+    "endDate": "2026-12-31T17:40:01+02:00"
+   },
+   "deliveryAddress": {
+    "streetAddress": "вул. Дмитрівська буд.5",
+    "locality": "Житомир",
+    "region": "Житомирська область",
+    "postalCode": "10008",
+    "countryName": "Україна"
+   }
+  }
+ ],
+ "value": {
+  "amount": 18680.0,
+  "currency": "UAH",
+  "valueAddedTaxIncluded": false
+ },
+ "status": "active",
+ "id": "93f900951bd74601b892c7713401e6af"
+}

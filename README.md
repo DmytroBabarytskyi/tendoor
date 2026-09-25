@@ -11,7 +11,7 @@ Tendoor (Ten + door, укр. «Тендор») — аналітика цінов
 ```
 backend/    Python 3.12 (uv), FastAPI, SQLAlchemy + Alembic, PyMongo
 frontend/   React + TypeScript + Vite
-docker-compose.yml   postgres, mongo, api, frontend
+docker-compose.yml   postgres, mongo, api, worker, frontend
 ```
 
 ## Запуск
@@ -33,4 +33,17 @@ cd backend && uv sync && uv run alembic upgrade head && uv run uvicorn tendoor.a
 cd frontend && npm install && npm run dev      # http://localhost:5173
 ```
 
-Перевірки бекенду: `uv run pytest`, `uv run ruff check .`
+Перевірки бекенду: `uv run pytest` (інтеграційні тести потребують запущеного Postgres), `uv run ruff check .`
+
+## Синхронізація з Prozorro
+
+Завдання ставиться через API, виконує його `worker` (фід змін Prozorro → MongoDB → PostgreSQL):
+
+```bash
+curl -X POST http://localhost:8000/api/sync/jobs -H "Content-Type: application/json"   -d '{"date_from":"2026-09-24","date_to":"2026-09-24","cpv_prefixes":["15"],"categories":["goods"]}'
+curl http://localhost:8000/api/sync/jobs/1          # прогрес
+curl http://localhost:8000/api/procurement/stats    # що вже в базі
+```
+
+Період задається за датою зміни документа в Prozorro (близько 25 тис. змін на добу, ~10 хв синхронізації).
+Перерване завдання після перезапуску worker продовжується з того ж місця.

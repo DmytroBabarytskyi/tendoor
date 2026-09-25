@@ -1,6 +1,7 @@
 from httpx import ASGITransport, AsyncClient
 
 from tendoor.api.app import create_app
+from tests.fakes import FakeContainer
 
 
 async def _ok() -> None:
@@ -12,7 +13,7 @@ async def _fail() -> None:
 
 
 async def _get_health(probes):
-    app = create_app(probes=probes)
+    app = create_app(container=FakeContainer(), probes=probes)
     transport = ASGITransport(app=app)
     async with (
         app.router.lifespan_context(app),

@@ -1,0 +1,479 @@
+{
+ "description": "Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4: лот № 1 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4; лот № 2 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4; лот № 3 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4; лот № 4 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4. Опис предмета закупівлі зазначено в документації до закупівлі.",
+ "date": "2026-09-10T18:12:12.420801+03:00",
+ "dateModified": "2026-09-25T17:30:58.539188+03:00",
+ "dateCreated": "2026-08-25T16:44:20.825262+03:00",
+ "tenderID": "UA-2026-08-25-012324-a",
+ "owner": "prom.ua",
+ "title": "Мобільна робоча станція тип 1, мобільна робоча станція тип 2, мобільна робоча станція тип 3, робоча станція до системи відеоспостереження 4 лоти: лот № 1 - Мобільна робоча станція тип 1; лот № 2 - Мобільна робоча станція тип 2; лот № 3 - Мобільна робоча станція тип 3; лот № 4 - Робоча станція до системи відеоспостереження\n",
+ "mainProcurementCategory": "goods",
+ "procurementMethod": "open",
+ "submissionMethod": "electronicAuction",
+ "awardCriteria": "lowestCost",
+ "procuringEntity": {
+  "name": "Служба безпеки України",
+  "identifier": {
+   "scheme": "UA-EDR",
+   "id": "00034074",
+   "legalName": "Служба безпеки України"
+  },
+  "address": {
+   "countryName": "Україна"
+  },
+  "kind": "defense"
+ },
+ "value": {
+  "currency": "UAH",
+  "valueAddedTaxIncluded": false,
+  "amount": 13571124.35
+ },
+ "guarantee": {
+  "amount": 0.0,
+  "currency": "UAH"
+ },
+ "lots": [
+  {
+   "title": "лот № 1 - Мобільна робоча станція тип 1",
+   "description": "лот № 1 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "status": "complete",
+   "id": "5a0d838e1e1b46979d40d3db5d125911",
+   "date": "2026-09-25T17:13:11.705418+03:00",
+   "value": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 8673831.0
+   },
+   "minimalStep": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 86738.31
+   },
+   "guarantee": {
+    "amount": 0.0,
+    "currency": "UAH"
+   },
+   "auctionPeriod": {
+    "startDate": "2026-09-03T14:49:08.648000+03:00",
+    "endDate": "2026-09-03T15:12:09.198733+03:00"
+   },
+   "auctionUrl": "https://auctions.prozorro.gov.ua/tenders/d1a0061e88624031a47cc1adda98a924_5a0d838e1e1b46979d40d3db5d125911"
+  },
+  {
+   "title": "лот № 2 - Мобільна робоча станція тип 2",
+   "description": "лот № 2 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "status": "complete",
+   "id": "4d548ad266694673860ca758faaed587",
+   "date": "2026-09-25T17:24:53.891074+03:00",
+   "value": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 714497.62
+   },
+   "minimalStep": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 7144.98
+   },
+   "guarantee": {
+    "amount": 0.0,
+    "currency": "UAH"
+   }
+  },
+  {
+   "title": "лот № 3 - Мобільна робоча станція тип 3",
+   "description": "лот № 3 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "status": "active",
+   "id": "4052df97baa04c76a922251c0e693e9f",
+   "date": "2026-08-25T16:44:20.825262+03:00",
+   "value": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 1023882.4
+   },
+   "minimalStep": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 10238.82
+   },
+   "guarantee": {
+    "amount": 0.0,
+    "currency": "UAH"
+   },
+   "auctionPeriod": {
+    "startDate": "2026-09-03T14:05:00.849000+03:00",
+    "endDate": "2026-09-03T14:34:01.782974+03:00"
+   },
+   "auctionUrl": "https://auctions.prozorro.gov.ua/tenders/d1a0061e88624031a47cc1adda98a924_4052df97baa04c76a922251c0e693e9f"
+  },
+  {
+   "title": "лот № 4 - Робоча станція до системи відеоспостереження",
+   "description": "лот № 4 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "status": "complete",
+   "id": "0549f09fede3454fba5abab59a0b0072",
+   "date": "2026-09-25T17:30:58.539188+03:00",
+   "value": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 3158913.33
+   },
+   "minimalStep": {
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amount": 31589.13
+   },
+   "guarantee": {
+    "amount": 0.0,
+    "currency": "UAH"
+   }
+  }
+ ],
+ "complaintPeriod": {
+  "startDate": "2026-08-25T16:44:20.457916+03:00",
+  "endDate": "2026-08-30T00:00:00+03:00"
+ },
+ "status": "active.awarded",
+ "procurementMethodType": "aboveThreshold",
+ "enquiryPeriod": {
+  "startDate": "2026-08-25T16:44:20.457916+03:00",
+  "endDate": "2026-08-30T00:00:00+03:00",
+  "clarificationsUntil": "2026-09-02T00:00:00+03:00",
+  "invalidationDate": "2026-08-25T16:45:40.212101+03:00"
+ },
+ "tenderPeriod": {
+  "startDate": "2026-08-25T16:44:20.457916+03:00",
+  "endDate": "2026-09-02T11:00:00+03:00"
+ },
+ "items": [
+  {
+   "id": "acde15486f1048f1861205f94d997238",
+   "description": "лот № 1 - Мобільна робоча станція тип 1",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 180.0,
+   "classification": {
+    "description": "Машини для обробки даних (апаратна частина)",
+    "scheme": "ДК021",
+    "id": "30210000-4"
+   },
+   "relatedLot": "5a0d838e1e1b46979d40d3db5d125911",
+   "deliveryDate": {
+    "endDate": "2026-12-15T00:00:00+02:00"
+   },
+   "deliveryAddress": {
+    "locality": "Відповідно до документації",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "a00ab6cd95ba4b0684ddea5e5c004d98",
+   "description": "лот № 2 - Мобільна робоча станція тип 2",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 1.0,
+   "classification": {
+    "description": "Машини для обробки даних (апаратна частина)",
+    "scheme": "ДК021",
+    "id": "30210000-4"
+   },
+   "relatedLot": "4d548ad266694673860ca758faaed587",
+   "deliveryDate": {
+    "endDate": "2026-12-15T00:00:00+02:00"
+   },
+   "deliveryAddress": {
+    "locality": "Відповідно до документації",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "e3117eee54f5421f92ac7ba522f6d3a9",
+   "description": "лот № 3 - Мобільна робоча станція тип 3",
+   "unit": {
+    "name": "штука",
+    "code": "H87"
+   },
+   "quantity": 4.0,
+   "classification": {
+    "description": "Машини для обробки даних (апаратна частина)",
+    "scheme": "ДК021",
+    "id": "30210000-4"
+   },
+   "relatedLot": "4052df97baa04c76a922251c0e693e9f",
+   "deliveryDate": {
+    "endDate": "2026-12-15T00:00:00+02:00"
+   },
+   "deliveryAddress": {
+    "locality": "Відповідно до документації",
+    "countryName": "Україна"
+   }
+  },
+  {
+   "id": "b70ebe5e71264fddb137e78e74df4454",
+   "description": "лот № 4 - Робоча станція до системи відеоспостереження",
+   "unit": {
+    "name": "комплект",
+    "code": "KT"
+   },
+   "quantity": 10.0,
+   "classification": {
+    "description": "Машини для обробки даних (апаратна частина)",
+    "scheme": "ДК021",
+    "id": "30210000-4"
+   },
+   "relatedLot": "0549f09fede3454fba5abab59a0b0072",
+   "deliveryDate": {
+    "endDate": "2026-12-15T00:00:00+02:00"
+   },
+   "deliveryAddress": {
+    "locality": "Відповідно до документації",
+    "countryName": "Україна"
+   }
+  }
+ ],
+ "noticePublicationDate": "2026-08-25T16:45:40.212101+03:00",
+ "awardPeriod": {
+  "startDate": "2026-09-03T15:12:09.198733+03:00",
+  "endDate": "2026-09-10T18:12:12.420801+03:00"
+ },
+ "awards": [
+  {
+   "id": "a82cda248a7c48838df41a4fa986477b",
+   "status": "active",
+   "date": "2026-09-09T16:17:42.742272+03:00",
+   "value": {
+    "amount": 7727630.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false
+   },
+   "suppliers": [
+    {
+     "name": "ТОВ \"Інтеграційні Системи\"",
+     "identifier": {
+      "scheme": "UA-EDR",
+      "id": "35431019",
+      "legalName": "ТОВ \"Інтеграційні Системи\"",
+      "uri": "http://integritysys.com.ua"
+     },
+     "address": {
+      "streetAddress": "вул.П.Скоропадського, 39, оф.103",
+      "locality": "Київ",
+      "region": "м. Київ",
+      "postalCode": "01032",
+      "countryName": "Україна"
+     },
+     "scale": "mid"
+    }
+   ],
+   "bid_id": "44196acba2024e9889b09ef5e5eb7b84",
+   "lotID": "5a0d838e1e1b46979d40d3db5d125911",
+   "period": {
+    "startDate": "2026-09-03T15:12:09.198733+03:00",
+    "endDate": "2026-09-11T00:00:00+03:00"
+   },
+   "qualified": true,
+   "eligible": true,
+   "complaintPeriod": {
+    "startDate": "2026-09-09T16:17:42.742272+03:00",
+    "endDate": "2026-09-15T00:00:00+03:00"
+   }
+  },
+  {
+   "id": "3f5ea2fdf9c74573b13ba73ef1d92c07",
+   "status": "active",
+   "date": "2026-09-09T16:20:11.303219+03:00",
+   "value": {
+    "amount": 708350.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false
+   },
+   "suppliers": [
+    {
+     "name": "ТОВ \"АЛЕСТА\"",
+     "identifier": {
+      "scheme": "UA-EDR",
+      "id": "42232756",
+      "legalName": "ТОВ \"АЛЕСТА\"",
+      "uri": "https://alesta.ua/"
+     },
+     "address": {
+      "streetAddress": "вулиця Дмитрівська (Шевченківський Р-Н), будинок 66а, офіс 65",
+      "locality": "місто Київ",
+      "region": "м. Київ",
+      "postalCode": "01135",
+      "countryName": "Україна"
+     },
+     "scale": "mid"
+    }
+   ],
+   "bid_id": "c3f397ed1f3f4de99b392dc2efa955b2",
+   "lotID": "4d548ad266694673860ca758faaed587",
+   "period": {
+    "startDate": "2026-09-03T15:12:09.198733+03:00",
+    "endDate": "2026-09-11T00:00:00+03:00"
+   },
+   "qualified": true,
+   "eligible": true,
+   "complaintPeriod": {
+    "startDate": "2026-09-09T16:20:11.303219+03:00",
+    "endDate": "2026-09-15T00:00:00+03:00"
+   }
+  },
+  {
+   "id": "9e58ed96fcce47028620f3c9a46f87e6",
+   "status": "active",
+   "date": "2026-09-10T18:12:12.420801+03:00",
+   "value": {
+    "amount": 869683.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false
+   },
+   "suppliers": [
+    {
+     "name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІД­ПО­ВІД­АЛЬ­НІ­СТЮ «ЮДІТРЕЙД»",
+     "name_en": "LIMITED LIABILITY COMPANY “UDITRADE”",
+     "identifier": {
+      "scheme": "UA-EDR",
+      "id": "42036301",
+      "legalName": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІД­ПО­ВІД­АЛЬ­НІ­СТЮ «ЮДІТРЕЙД»",
+      "legalName_en": "LIMITED LIABILITY COMPANY “UDITRADE”"
+     },
+     "address": {
+      "streetAddress": "вул.Соборності 19В",
+      "locality": "Полтава",
+      "region": "Полтавська область",
+      "postalCode": "36000",
+      "countryName": "Україна",
+      "countryName_en": "Україна"
+     },
+     "scale": "micro"
+    }
+   ],
+   "bid_id": "d25ac01336244c63a73078342148e9b0",
+   "lotID": "4052df97baa04c76a922251c0e693e9f",
+   "period": {
+    "startDate": "2026-09-03T15:12:09.198733+03:00",
+    "endDate": "2026-09-11T00:00:00+03:00"
+   },
+   "qualified": true,
+   "eligible": true,
+   "complaintPeriod": {
+    "startDate": "2026-09-10T18:12:12.420801+03:00",
+    "endDate": "2026-09-16T00:00:00+03:00"
+   }
+  },
+  {
+   "id": "a29848c4096b46379380f9fa0576c31f",
+   "status": "active",
+   "date": "2026-09-09T16:25:35.513136+03:00",
+   "value": {
+    "amount": 2938190.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false
+   },
+   "suppliers": [
+    {
+     "name": "ТОВ \"НЕОЛЕКС\"",
+     "identifier": {
+      "scheme": "UA-EDR",
+      "id": "36113613",
+      "legalName": "ТОВ \"НЕОЛЕКС\""
+     },
+     "address": {
+      "streetAddress": "ВУЛИЦЯ СІМ'Ї СОСНІНИХ, будинок 8, квартира 42",
+      "locality": "місто Київ",
+      "region": "м. Київ",
+      "postalCode": "03148",
+      "countryName": "Україна"
+     },
+     "scale": "mid"
+    }
+   ],
+   "bid_id": "4bfc2006577840d8a44556023be42ef3",
+   "lotID": "0549f09fede3454fba5abab59a0b0072",
+   "period": {
+    "startDate": "2026-09-03T15:12:09.198733+03:00",
+    "endDate": "2026-09-11T00:00:00+03:00"
+   },
+   "qualified": true,
+   "eligible": true,
+   "complaintPeriod": {
+    "startDate": "2026-09-09T16:25:35.513136+03:00",
+    "endDate": "2026-09-15T00:00:00+03:00"
+   }
+  }
+ ],
+ "contracts": [
+  {
+   "id": "ba1fc15debb749dc936137f5ac62ba31",
+   "status": "active",
+   "awardID": "a82cda248a7c48838df41a4fa986477b",
+   "date": "2026-09-25T17:13:11.705418+03:00",
+   "contractID": "UA-2026-08-25-012324-a-a1",
+   "title": "лот № 1 - Мобільна робоча станція тип 1",
+   "title_en": null,
+   "description": "лот № 1 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "description_en": null,
+   "value": {
+    "amount": 9273156.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": true,
+    "amountNet": 7727630.0
+   }
+  },
+  {
+   "id": "defa54f976af467cb79ac7579c680adb",
+   "status": "active",
+   "awardID": "3f5ea2fdf9c74573b13ba73ef1d92c07",
+   "date": "2026-09-25T17:24:53.891074+03:00",
+   "contractID": "UA-2026-08-25-012324-a-a2",
+   "title": "лот № 2 - Мобільна робоча станція тип 2",
+   "title_en": null,
+   "description": "лот № 2 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "description_en": null,
+   "value": {
+    "amount": 850020.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": true,
+    "amountNet": 708350.0
+   }
+  },
+  {
+   "id": "d435dcc01b6343d7a71cf395ff8ce0de",
+   "status": "active",
+   "awardID": "a29848c4096b46379380f9fa0576c31f",
+   "date": "2026-09-25T17:30:58.539188+03:00",
+   "contractID": "UA-2026-08-25-012324-a-a3",
+   "title": "лот № 4 - Робоча станція до системи відеоспостереження",
+   "title_en": null,
+   "description": "лот № 4 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "description_en": null,
+   "value": {
+    "amount": 2938190.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amountNet": 2938190.0
+   }
+  },
+  {
+   "id": "83b976355f9c4606993c00241381d582",
+   "status": "pending",
+   "awardID": "9e58ed96fcce47028620f3c9a46f87e6",
+   "date": "2026-09-10T18:12:12.420801+03:00",
+   "contractID": "UA-2026-08-25-012324-a-a4",
+   "title": "лот № 3 - Мобільна робоча станція тип 3",
+   "title_en": null,
+   "description": "лот № 3 - Машини для обробки даних (апаратна частина), код ДК 021:2015 - 30210000-4",
+   "description_en": null,
+   "value": {
+    "amount": 869683.0,
+    "currency": "UAH",
+    "valueAddedTaxIncluded": false,
+    "amountNet": 869683.0
+   }
+  }
+ ],
+ "id": "d1a0061e88624031a47cc1adda98a924"
+}
