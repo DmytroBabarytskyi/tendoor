@@ -189,6 +189,41 @@ class FakeContainer:
         self.auditor = self.users.add("auditor@test.ua", "auditor")
         self.analysis = FakeAnalysis()
         self.detection = FakeDetection(self.analysis)
+        self.verdicts = FakeVerdicts()
+
+
+class FakeVerdicts:
+    def __init__(self) -> None:
+        self.items: dict[int, dict] = {}
+
+    async def item_card(self, item_id, run_id):
+        if item_id != 1:
+            return None
+        return {"item": {"item_id": 1}, "result": None, "analogs": [], "verdict": self.items.get(1)}
+
+    async def upsert(self, actor_id, item_id, result_id, status, reason, comment):
+        self.items[item_id] = {
+            "item_id": item_id,
+            "status": status,
+            "reason": reason,
+            "comment": comment,
+            "user_id": actor_id,
+        }
+        return self.items[item_id]
+
+    async def history(self, item_id):
+        return []
+
+    async def search(self, status, reason, user_id, limit, offset):
+        rows = [
+            v
+            for v in self.items.values()
+            if (not status or v["status"] == status) and (not user_id or v["user_id"] == user_id)
+        ]
+        return rows, len(rows)
+
+    async def stats(self):
+        return {"by_status_reason": []}
 
 
 class FakeAnalysis:

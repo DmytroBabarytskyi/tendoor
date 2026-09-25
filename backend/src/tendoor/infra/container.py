@@ -11,6 +11,7 @@ from tendoor.repositories.sql.access import SqlAuditRepository, SqlConfigReposit
 from tendoor.repositories.sql.analysis import SqlAnalysisRepository
 from tendoor.repositories.sql.procurement import SqlProcurementRepository
 from tendoor.repositories.sql.sync_jobs import SqlSyncJobRepository
+from tendoor.repositories.sql.verdicts import SqlVerdictRepository
 from tendoor.services.auth import AuthService, LoginLimiter
 from tendoor.services.detection import DetectionService
 from tendoor.services.users import UserService
@@ -31,6 +32,7 @@ class Container:
     user_service: UserService
     analysis: SqlAnalysisRepository
     detection: DetectionService
+    verdicts: SqlVerdictRepository
 
     @classmethod
     def build(cls, settings: Settings) -> "Container":
@@ -59,6 +61,7 @@ class Container:
             user_service=UserService(users),
             analysis=analysis,
             detection=DetectionService(analysis, config, settings.model_dir),
+            verdicts=SqlVerdictRepository(sf),
         )
 
     async def close(self) -> None:

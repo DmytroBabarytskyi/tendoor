@@ -16,6 +16,7 @@ dayjs.locale('uk')
 const AnalysisPage = lazy(() => import('./pages/analysis/AnalysisPage'))
 const ResultPage = lazy(() => import('./pages/analysis/ResultPage'))
 const AuditPage = lazy(() => import('./pages/AuditPage'))
+const ChecksPage = lazy(() => import('./pages/audit/ChecksPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'analysis', element: <AnalysisPage /> },
       { path: 'analysis/:id', element: <ResultPage /> },
+      { path: 'checks', element: <ChecksPage /> },
       { path: 'sync', element: <Protected roles={['admin', 'analyst']}><SyncPage /></Protected> },
       { path: 'users', element: <Protected roles={['admin']}><UsersPage /></Protected> },
       { path: 'settings', element: <Protected roles={['admin']}><SettingsPage /></Protected> },

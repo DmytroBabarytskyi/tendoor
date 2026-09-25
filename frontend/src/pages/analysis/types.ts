@@ -84,6 +84,7 @@ export type AnomalyRow = {
   entity_region: string | null
   category_id: number
   explanation: string
+  verdict_status: 'confirmed' | 'not_anomaly' | 'needs_review' | null
 }
 
 export const STATUS = {

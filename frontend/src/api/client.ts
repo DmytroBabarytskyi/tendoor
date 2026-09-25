@@ -75,6 +75,23 @@ export async function api<T>(path: string, init: RequestInit = {}, retry = true)
   return (await resp.json()) as T
 }
 
+/** Завантаження файлу (звіту) з тими самими правилами автентифікації, що й api(). */
+export async function download(path: string, fallbackName: string): Promise<void> {
+  const send = () =>
+    fetch(`/api${path}`, {
+      credentials: 'include',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    })
+  let resp = await send()
+  if (resp.status === 401 && (await refreshSession())) resp = await send()
+  if (!resp.ok) throw new ApiError(resp.status, await errorMessage(resp))
+  const name = /filename="([^"]+)"/.exec(resp.headers.get('Content-Disposition') ?? '')?.[1] ?? fallbackName
+  const url = URL.createObjectURL(await resp.blob())
+  const a = Object.assign(document.createElement('a'), { href: url, download: name })
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function login(email: string, password: string): Promise<User> {
   const data = await api<TokenResponse>('/auth/login', {
     method: 'POST',

@@ -1,6 +1,7 @@
-import { ArrowLeftOutlined, LinkOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, DownloadOutlined, LinkOutlined } from '@ant-design/icons'
 import {
   Alert,
+  App,
   Button,
   Card,
   Col,
@@ -17,8 +18,10 @@ import {
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { api } from '../../api/client'
+import { api, download } from '../../api/client'
 import Chart from '../../components/Chart'
+import ItemDrawer from '../audit/ItemDrawer'
+import { VERDICT_STATUS, type VerdictStatus } from '../audit/verdicts'
 import { pcaOption, priceVolumeOption, type Point } from './charts'
 import HomogeneityCard from './HomogeneityCard'
 import { STATUS, type AnalysisRequest, type AnomalyRow, type Category } from './types'
@@ -44,6 +47,10 @@ export default function ResultPage() {
   const [view, setView] = useState<'price' | 'pca'>('price')
   const [page, setPage] = useState(1)
   const [rows, setRows] = useState<{ key: string; total: number; items: AnomalyRow[] } | null>(null)
+  const [opened, setOpened] = useState<number | null>(null)
+  const [reloadRows, setReloadRows] = useState(0)
+  const [downloading, setDownloading] = useState(false)
+  const { message } = App.useApp()
 
   // поки модель навчається — опитування статусу
   useEffect(() => {
@@ -85,7 +92,7 @@ export default function ResultPage() {
     }
   }, [done, id, catId])
 
-  const rowsKey = `${page}|${catId ?? ''}`
+  const rowsKey = `${page}|${catId ?? ''}|${reloadRows}`
   useEffect(() => {
     if (!done) return
     let alive = true
@@ -121,6 +128,20 @@ export default function ResultPage() {
         </Typography.Title>
         <Tag color={STATUS[req.status].color}>{STATUS[req.status].label}</Tag>
         {req.from_cache && <Tag>з кешу</Tag>}
+        {done && (
+          <Button
+            icon={<DownloadOutlined />}
+            loading={downloading}
+            onClick={() => {
+              setDownloading(true)
+              download(`/analysis/requests/${req.id}/report.xlsx`, `tendoor-analysis-${req.id}.xlsx`)
+                .catch((e: Error) => message.error(e.message))
+                .finally(() => setDownloading(false))
+            }}
+          >
+            Звіт XLSX
+          </Button>
+        )}
       </Space>
       <Typography.Paragraph type="secondary">
         Період оголошення {dayjs(req.date_from).format('DD.MM.YYYY')} – {dayjs(req.date_to).format('DD.MM.YYYY')}
@@ -209,6 +230,7 @@ export default function ResultPage() {
               scroll={{ x: 1100 }}
               pagination={{ current: page, pageSize: PAGE, total: rows?.total ?? 0, onChange: setPage, showSizeChanger: false }}
               expandable={{ expandedRowRender: (r) => <Typography.Text>{r.explanation}</Typography.Text> }}
+              onRow={(r) => ({ onClick: () => setOpened(r.item_id), style: { cursor: 'pointer' } })}
               columns={[
                 { title: 'Ризик', dataIndex: 'risk_score', width: 130, render: riskTag },
                 {
@@ -224,13 +246,25 @@ export default function ResultPage() {
                     v == null ? '—' : v >= 1 ? `×${v.toFixed(1)} вище` : `×${(1 / v).toFixed(1)} нижче`,
                 },
                 { title: 'Предмет закупівлі', dataIndex: 'description', ellipsis: true },
+                {
+                  title: 'Вердикт',
+                  dataIndex: 'verdict_status',
+                  width: 170,
+                  render: (s: VerdictStatus | null) =>
+                    s ? <Tag color={VERDICT_STATUS[s].color}>{VERDICT_STATUS[s].label}</Tag> : <Tag>не розглянуто</Tag>,
+                },
                 { title: 'Замовник', dataIndex: 'entity_name', ellipsis: true },
                 {
                   title: 'Закупівля',
                   dataIndex: 'tender_code',
                   width: 220,
                   render: (code: string) => (
-                    <a href={`https://prozorro.gov.ua/tender/${code}`} target="_blank" rel="noreferrer">
+                    <a
+                      href={`https://prozorro.gov.ua/tender/${code}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {code} <LinkOutlined />
                     </a>
                   ),
@@ -238,6 +272,12 @@ export default function ResultPage() {
               ]}
             />
           </Card>
+          <ItemDrawer
+            itemId={opened}
+            runId={req.model_run_id}
+            onClose={() => setOpened(null)}
+            onSaved={() => setReloadRows((n) => n + 1)}
+          />
           {req.homogeneity_details && (
             <Card title="Однорідність вибірки" style={{ marginTop: 16, maxWidth: 560 }}>
               <HomogeneityCard h={req.homogeneity_details} nItems={req.homogeneity_details.n_items} />

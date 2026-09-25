@@ -1,6 +1,7 @@
 import {
   AuditOutlined,
   CloudSyncOutlined,
+  FileSearchOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   LogoutOutlined,
@@ -20,6 +21,7 @@ type NavItem = { key: string; label: string; icon: ReactNode; roles: Role[] }
 const NAV: NavItem[] = [
   { key: '/', label: 'Огляд', icon: <DashboardOutlined />, roles: ['admin', 'analyst', 'auditor'] },
   { key: '/analysis', label: 'Аналіз аномалій', icon: <ExperimentOutlined />, roles: ['admin', 'analyst', 'auditor'] },
+  { key: '/checks', label: 'Перевірки', icon: <FileSearchOutlined />, roles: ['admin', 'analyst', 'auditor'] },
   { key: '/sync', label: 'Синхронізація', icon: <CloudSyncOutlined />, roles: ['admin', 'analyst'] },
   { key: '/users', label: 'Користувачі', icon: <TeamOutlined />, roles: ['admin'] },
   { key: '/settings', label: 'Параметри аналізу', icon: <SettingOutlined />, roles: ['admin'] },

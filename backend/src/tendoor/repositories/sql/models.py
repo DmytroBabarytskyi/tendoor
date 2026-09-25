@@ -331,3 +331,61 @@ class AnomalyResult(Base):
     price_ratio: Mapped[float | None] = mapped_column(Float)
     pc1: Mapped[float | None] = mapped_column(Float)
     pc2: Mapped[float | None] = mapped_column(Float)
+
+
+# ---------------------------------------------------------------- аудит і звітність (A3)
+
+VERDICT_STATUSES = ("confirmed", "not_anomaly", "needs_review")
+VERDICT_REASONS = ("overpriced", "underpriced", "unit_error", "data_error", "justified", "other")
+
+
+class Verdict(Base):
+    """Висновок аудитора щодо ціни позиції. Прив'язаний до позиції, а не до запуску моделі,
+    тож зберігається між перенавчаннями й слугує розміткою для оцінювання та донавчання."""
+
+    __tablename__ = "verdict"
+    __table_args__ = (
+        CheckConstraint(f"status IN {VERDICT_STATUSES}", name="status"),
+        CheckConstraint(f"reason IN {VERDICT_REASONS}", name="reason"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"), unique=True)
+    anomaly_result_id: Mapped[int | None] = mapped_column(
+        ForeignKey("anomaly_result.id", ondelete="SET NULL")
+    )
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"), index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    reason: Mapped[str] = mapped_column(String(20))
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+
+
+class VerdictHistory(Base):
+    """Історія змін вердикту; заповнюється тригером trg_verdict_history."""
+
+    __tablename__ = "verdict_history"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    verdict_id: Mapped[int] = mapped_column(ForeignKey("verdict.id", ondelete="CASCADE"), index=True)
+    changed_by: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
+    old_status: Mapped[str | None] = mapped_column(String(20))
+    new_status: Mapped[str] = mapped_column(String(20))
+    old_reason: Mapped[str | None] = mapped_column(String(20))
+    new_reason: Mapped[str] = mapped_column(String(20))
+    comment: Mapped[str | None] = mapped_column(Text)
+    changed_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+
+
+class Report(Base):
+    """Факт формування звіту (A3.2) — для історії перевірок; сам файл генерується на запит."""
+
+    __tablename__ = "report"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    analysis_request_id: Mapped[int] = mapped_column(ForeignKey("analysis_request.id", ondelete="CASCADE"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
+    format: Mapped[str] = mapped_column(String(10))
+    n_rows: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
