@@ -11,9 +11,11 @@ services:
     volumes: [pg_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
+      start_period: 30s
+      start_interval: 2s
+      interval: 30s
       timeout: 3s
-      retries: 10
+      retries: 5
 
   mongo:
     image: mongo:7
@@ -21,9 +23,13 @@ services:
     volumes: [mongo_data:/data/db]
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      # mongosh — окремий процес Node.js (~1 с CPU на перевірку): часто лише під час старту,
+      # далі раз на хвилину, інакше перевірки забирають помітну частку процесора
+      start_period: 60s
+      start_interval: 2s
+      interval: 60s
+      timeout: 10s
+      retries: 5
 
   api:
     build: ./backend
@@ -54,6 +60,20 @@ services:
     build: ./frontend
     ports: ["8080:80"]
     depends_on: [api]
+
+  # навантажувальне тестування всередині мережі compose (без проксі портів Docker Desktop):
+  #   TENDOOR_LOAD_PASSWORD=... docker compose --profile loadtest run --rm --no-deps locust -u 50 -r 5 -t 3m
+  locust:
+    image: locustio/locust:2.46.2
+    profiles: [loadtest]
+    working_dir: /mnt/loadtest
+    volumes: [./loadtest:/mnt/loadtest]
+    environment:
+      TENDOOR_LOAD_EMAIL: ${TENDOOR_LOAD_EMAIL:-loadtest@tendoor.dev}
+      TENDOOR_LOAD_PASSWORD: ${TENDOOR_LOAD_PASSWORD:-}
+    entrypoint: ["locust", "-f", "locustfile.py", "--host", "http://frontend", "--headless", "--only-summary",
+                 "--csv", "results/run", "--html", "results/report.html"]
+    depends_on: [frontend]
 
 volumes:
   pg_data:

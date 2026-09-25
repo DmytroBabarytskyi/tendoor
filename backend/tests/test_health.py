@@ -36,3 +36,10 @@ async def test_health_degraded_when_storage_down():
     body = resp.json()
     assert body["status"] == "degraded"
     assert body["checks"]["mongo"] == "error: ConnectionError"
+
+
+async def test_large_responses_are_compressed(client):
+    r = await client.get("/api/openapi.json", headers={"Accept-Encoding": "gzip"})
+    assert r.headers["content-encoding"] == "gzip"
+    small = await client.get("/api/health", headers={"Accept-Encoding": "gzip"})
+    assert "content-encoding" not in small.headers

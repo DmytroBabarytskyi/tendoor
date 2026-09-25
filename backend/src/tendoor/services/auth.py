@@ -7,9 +7,10 @@ from tendoor.infra.security import (
     TokenError,
     TokenService,
     hash_password,
+    hash_password_async,
     needs_rehash,
     password_problem,
-    verify_password,
+    verify_password_async,
 )
 from tendoor.repositories.base import AuditRepository, UserData, UserRepository
 
@@ -76,7 +77,7 @@ class AuthService:
         key = f"{email.lower()}|{ip}"
         self._limiter.check(key)
         found = await self._users.get_with_hash(email)
-        ok = verify_password(found[1] if found else _DUMMY_HASH, password)
+        ok = await verify_password_async(found[1] if found else _DUMMY_HASH, password)
         if not found or not ok or not found[0].is_active:
             self._limiter.fail(key)
             await self._audit.log(
@@ -90,7 +91,7 @@ class AuthService:
         user, pw_hash = found
         self._limiter.reset(key)
         if needs_rehash(pw_hash):
-            await self._users.update(user.id, user.id, password_hash=hash_password(password))
+            await self._users.update(user.id, user.id, password_hash=await hash_password_async(password))
             user = await self._users.get(user.id) or user
         await self._users.touch_login(user.id)
         await self._audit.log(user.id, "LOGIN", "auth", ip=ip)
@@ -113,9 +114,9 @@ class AuthService:
 
     async def change_password(self, user: UserData, old: str, new: str) -> Session:
         current = await self._users.get_hash(user.id)
-        if current is None or not verify_password(current, old):
+        if current is None or not await verify_password_async(current, old):
             raise AuthError("Поточний пароль невірний")
         if problem := password_problem(new):
             raise ValueError(problem)
-        updated = await self._users.update(user.id, user.id, password_hash=hash_password(new))
+        updated = await self._users.update(user.id, user.id, password_hash=await hash_password_async(new))
         return self._issue(updated)

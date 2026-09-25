@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from tendoor import __version__
 from tendoor.api import admin, analysis, audit, auth, health, sync
@@ -42,6 +43,8 @@ def create_app(settings: Settings | None = None, container=None, probes: dict | 
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
     )
+    # JSON результатів аналізу (черга, групи, точки) — 60–130 КБ, стискається в 5–10 разів
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

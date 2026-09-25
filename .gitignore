@@ -33,3 +33,6 @@ data/
 *.swp
 .DS_Store
 Thumbs.db
+
+# результати навантажувального тестування (копіюються в docs/notes/loadtest)
+loadtest/results/

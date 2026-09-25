@@ -92,6 +92,21 @@ class SqlAnalysisRepository:
         ]
         return pd.DataFrame(rows, columns=cols)
 
+    async def load_profile(self, f: AnalysisFilters) -> pd.DataFrame:
+        """Лише стовпці для оцінки однорідності: у кілька разів легше за повну вибірку з описами."""
+        sql = f"""SELECT i.cpv_code, i.base_unit_code, i.unit_price_base::float AS unit_price_base
+                  FROM item i JOIN tender t ON t.id = i.tender_id WHERE {_WHERE}"""
+        async with self._sf() as s:
+            rows = (await s.execute(text(sql), _params(f))).all()
+        return pd.DataFrame(rows, columns=["cpv_code", "base_unit_code", "unit_price_base"])
+
+    async def cached_homogeneity(self, cache_key: str) -> dict | None:
+        """Однорідність з попереднього запиту з тим самим ключем (ті самі умови й дані)."""
+        sql = """SELECT homogeneity_details FROM analysis_request
+                 WHERE cache_key = :key AND homogeneity_details IS NOT NULL ORDER BY id DESC LIMIT 1"""
+        async with self._sf() as s:
+            return (await s.execute(text(sql), {"key": cache_key})).scalar()
+
     async def fingerprint(self, f: AnalysisFilters) -> str:
         """Версія даних вибірки: зміниться, щойно нормалізація додасть чи змінить позиції."""
         sql = f"""SELECT count(*), coalesce(max(i.id), 0), max(t.date_modified)
@@ -102,10 +117,15 @@ class SqlAnalysisRepository:
 
     async def cpv_options(self, q: str, limit: int = 30) -> list[dict]:
         """Коди ДК 021, для яких є позиції з ціною; пошук за кодом або назвою."""
+        # спершу кількість позицій за кодами (~тисяча рядків), потім згортка до предків ієрархії:
+        # з'єднання LIKE з усіма позиціями напряму тривало ~4 с, так — ~80 мс
         sql = """
-            SELECT c.code, c.description, c.level, count(i.id) AS n
-            FROM cpv c JOIN item i ON i.cpv_code LIKE rtrim(c.code, '0') || '%'
-            WHERE i.unit_price_base > 0 AND c.description IS NOT NULL
+            WITH counts AS (
+                SELECT cpv_code, count(*) AS n FROM item WHERE unit_price_base > 0 GROUP BY cpv_code
+            )
+            SELECT c.code, c.description, c.level, sum(k.n)::int AS n
+            FROM cpv c JOIN counts k ON k.cpv_code LIKE rtrim(c.code, '0') || '%'
+            WHERE c.description IS NOT NULL
               AND (:q = '' OR c.code LIKE :q || '%' OR c.description ILIKE '%' || :q || '%')
             GROUP BY c.code, c.description, c.level
             ORDER BY n DESC

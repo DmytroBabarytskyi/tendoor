@@ -92,6 +92,8 @@ async def _run_cycle(dbs):
 
     preview = await svc.preview(f)
     assert preview["n_items"] == 41
+    options = {o["code"]: o["n"] for o in await repo.cpv_options("9999", 30)}
+    assert options[TEST_CPV] == 41  # пошук кодів з кількістю позицій з ціною (разом з нащадками)
     assert preview["homogeneity"]["cpv_classes"] == 1
 
     req = await svc.submit(None, f)
@@ -117,7 +119,14 @@ async def test_full_cycle_with_cache(dbs):
     assert cats[0]["cpv_code"] == TEST_CPV and cats[0]["analysed"]
 
     # той самий запит з тими самими даними й параметрами — миттєво з кешу, без навчання
+    # і без повторного завантаження вибірки (однорідність береться з попереднього запиту)
+    async def no_load(_):
+        raise AssertionError("вибірка не має завантажуватися при влученні в кеш")
+
+    load_profile, repo.load_profile = repo.load_profile, no_load
     again = await svc.submit(None, f)
+    repo.load_profile = load_profile
+    assert again["homogeneity_details"] == done["homogeneity_details"]
     assert again["status"] == "done" and again["from_cache"]
     assert again["model_run_id"] == done["model_run_id"]
 

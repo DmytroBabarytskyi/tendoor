@@ -59,9 +59,12 @@ class DetectionService:
 
     async def preview(self, f: AnalysisFilters) -> dict:
         """A2.1: однорідність і склад вибірки — до запуску навчання."""
-        df = await self._repo.load_selection(f)
+        df = await self._repo.load_profile(f)
         thresholds = (await self._config.get(THRESHOLDS_KEY) or {}).get("value", {})
-        h = homogeneity(df, thresholds.get("good", 0.7), thresholds.get("warn", 0.4)).as_dict()
+        # обчислення pandas — поза циклом подій, щоб не затримувати інші запити
+        h = (
+            await asyncio.to_thread(homogeneity, df, thresholds.get("good", 0.7), thresholds.get("warn", 0.4))
+        ).as_dict()
         units = df["base_unit_code"].value_counts().head(10) if len(df) else []
         return {
             "n_items": len(df),
@@ -76,17 +79,21 @@ class DetectionService:
 
     async def submit(self, user_id: int, f: AnalysisFilters, overrides: dict | None = None) -> dict:
         params = await self.params(overrides)
-        preview = await self.preview(f)
-        if preview["n_items"] == 0:
-            raise DetectionError("за обраними умовами немає позицій з ціною")
-        if preview["too_large"]:
-            raise DetectionError(f"вибірка перевищує {MAX_ITEMS} позицій — звузьте період або коди ДК 021")
         key = cache_key(f, await self._repo.fingerprint(f), params)
         run = await self._repo.find_run(key)
         cached = run["id"] if run and run["status"] == "done" else None
-        return await self._repo.create_request(
-            user_id, f, overrides or {}, key, preview["homogeneity"], cached
-        )
+        # готовий результат для тих самих умов і даних: вибірку повторно не завантажуємо
+        h = await self._repo.cached_homogeneity(key) if cached else None
+        if h is None:
+            preview = await self.preview(f)
+            if preview["n_items"] == 0:
+                raise DetectionError("за обраними умовами немає позицій з ціною")
+            if preview["too_large"]:
+                raise DetectionError(
+                    f"вибірка перевищує {MAX_ITEMS} позицій — звузьте період або коди ДК 021"
+                )
+            h = preview["homogeneity"]
+        return await self._repo.create_request(user_id, f, overrides or {}, key, h, cached)
 
     async def process(self, request: dict) -> None:
         """Виконується worker'ом: навчання на вибірці або повторне використання готового запуску."""

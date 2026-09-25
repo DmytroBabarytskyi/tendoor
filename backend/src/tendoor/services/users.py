@@ -1,6 +1,6 @@
 """A4.2 Керування користувачами й ролями."""
 
-from tendoor.infra.security import hash_password, password_problem
+from tendoor.infra.security import hash_password_async, password_problem
 from tendoor.repositories.base import UserData, UserRepository
 
 ROLES = ("admin", "analyst", "auditor")
@@ -28,7 +28,7 @@ class UserService:
         if await self._users.get_with_hash(email):
             raise UserError("користувач з таким email вже існує", conflict=True)
         return await self._users.create(
-            actor.id if actor else None, email, full_name.strip(), role, hash_password(password)
+            actor.id if actor else None, email, full_name.strip(), role, await hash_password_async(password)
         )
 
     async def update(
@@ -55,7 +55,7 @@ class UserService:
         if password is not None:
             if problem := password_problem(password):
                 raise UserError(problem)
-            fields["password_hash"] = hash_password(password)
+            fields["password_hash"] = await hash_password_async(password)
 
         # Змінювати користувачів може лише активний адміністратор, а собі він не може зняти роль
         # чи заблокувати себе — тож у системі завжди лишається щонайменше один активний адміністратор.

@@ -1,5 +1,7 @@
 """Хешування паролів (Argon2id) і токени доступу (JWT, HS256)."""
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -21,6 +23,22 @@ def verify_password(password_hash: str, password: str) -> bool:
         return _hasher.verify(password_hash, password)
     except (VerificationError, InvalidHashError):
         return False
+
+
+# Argon2id навмисно повільний (~150 мс і 64 МБ пам'яті на перевірку). У циклі подій він блокував би
+# всі інші запити, тому виконується в окремому потоці. Один хеш уже займає parallelism=4 ядра,
+# тож кілька паралельних хешів лише витісняли б цикл подій і PostgreSQL (перевірено навантажувальним тестом).
+_HASH_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="argon2")
+
+
+async def hash_password_async(password: str) -> str:
+    return await asyncio.get_running_loop().run_in_executor(_HASH_POOL, hash_password, password)
+
+
+async def verify_password_async(password_hash: str, password: str) -> bool:
+    return await asyncio.get_running_loop().run_in_executor(
+        _HASH_POOL, verify_password, password_hash, password
+    )
 
 
 def needs_rehash(password_hash: str) -> bool:
