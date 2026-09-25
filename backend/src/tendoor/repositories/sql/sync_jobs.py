@@ -20,11 +20,17 @@ class SqlSyncJobRepository:
         self._sf = session_factory
 
     async def create(
-        self, date_from: date, date_to: date, cpv_prefixes: list[str], categories: list[str]
+        self,
+        date_from: date,
+        date_to: date,
+        cpv_prefixes: list[str],
+        categories: list[str],
+        created_by: int | None = None,
     ) -> SyncJobData:
         async with self._sf() as s, s.begin():
             job = SyncJob(
                 status="queued",
+                created_by=created_by,
                 date_from=date_from,
                 date_to=date_to,
                 cpv_prefixes=cpv_prefixes,

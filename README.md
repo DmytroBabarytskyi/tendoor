@@ -35,14 +35,28 @@ cd frontend && npm install && npm run dev      # http://localhost:5173
 
 Перевірки бекенду: `uv run pytest` (інтеграційні тести потребують запущеного Postgres), `uv run ruff check .`
 
-## Синхронізація з Prozorro
+## Користувачі та ролі
 
-Завдання ставиться через API, виконує його `worker` (фід змін Prozorro → MongoDB → PostgreSQL):
+Ролі: **Адміністратор** (користувачі, параметри аналізу, журнал аудиту), **Аналітик** (синхронізація даних,
+розширені параметри моделі), **Аудитор** (аналіз аномалій і вердикти). Першого адміністратора створює CLI —
+пароль запитується інтерактивно:
 
 ```bash
-curl -X POST http://localhost:8000/api/sync/jobs -H "Content-Type: application/json"   -d '{"date_from":"2026-09-24","date_to":"2026-09-24","cpv_prefixes":["15"],"categories":["goods"]}'
-curl http://localhost:8000/api/sync/jobs/1          # прогрес
-curl http://localhost:8000/api/procurement/stats    # що вже в базі
+docker compose exec api python -m tendoor.cli create-user --email admin@example.com --name "Адміністратор" --role admin
+```
+
+Далі користувачі створюються в інтерфейсі (розділ «Користувачі»). Зміни користувачів і параметрів фіксує
+тригер БД у журналі аудиту разом з автором зміни; входи й невдалі спроби — застосунок.
+
+## Синхронізація з Prozorro
+
+Завдання виконує `worker` (фід змін Prozorro → MongoDB → PostgreSQL):
+
+```bash
+В інтерфейсі: розділ «Синхронізація» (ролі Адміністратор і Аналітик). Або через API з токеном:
+
+```bash
+curl -X POST http://localhost:8000/api/sync/jobs -H "Authorization: Bearer $TOKEN"   -H "Content-Type: application/json"   -d '{"date_from":"2026-09-24","date_to":"2026-09-24","cpv_prefixes":["15"],"categories":["goods"]}'
 ```
 
 Період задається за датою зміни документа в Prozorro (близько 25 тис. змін на добу, ~10 хв синхронізації).

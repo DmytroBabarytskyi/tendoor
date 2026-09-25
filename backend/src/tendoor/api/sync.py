@@ -5,6 +5,8 @@ from datetime import date, datetime
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from tendoor.api.deps import AnalystUser, CurrentUser
+
 router = APIRouter(tags=["A1 База закупівель"])
 
 MAX_DAYS = 92
@@ -56,6 +58,7 @@ class SyncJobOut(BaseModel):
     normalized: int
     errors: int
     message: str | None
+    created_by: int | None = None
     created_at: datetime | None
     started_at: datetime | None
     finished_at: datetime | None
@@ -66,17 +69,19 @@ def _jobs(request: Request):
 
 
 @router.post("/sync/jobs", response_model=SyncJobOut, status_code=status.HTTP_201_CREATED)
-async def create_job(body: SyncJobIn, request: Request):
-    return await _jobs(request).create(body.date_from, body.date_to, body.cpv_prefixes, body.categories)
+async def create_job(body: SyncJobIn, user: AnalystUser, request: Request):
+    return await _jobs(request).create(
+        body.date_from, body.date_to, body.cpv_prefixes, body.categories, created_by=user.id
+    )
 
 
 @router.get("/sync/jobs", response_model=list[SyncJobOut])
-async def list_jobs(request: Request, limit: int = 20):
+async def list_jobs(_: AnalystUser, request: Request, limit: int = 20):
     return await _jobs(request).list_recent(min(limit, 100))
 
 
 @router.get("/sync/jobs/{job_id}", response_model=SyncJobOut)
-async def get_job(job_id: int, request: Request):
+async def get_job(job_id: int, _: AnalystUser, request: Request):
     job = await _jobs(request).get(job_id)
     if job is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Завдання не знайдено")
@@ -84,6 +89,6 @@ async def get_job(job_id: int, request: Request):
 
 
 @router.get("/procurement/stats")
-async def procurement_stats(request: Request) -> dict:
+async def procurement_stats(_: CurrentUser, request: Request) -> dict:
     c = request.app.state.container
     return {**await c.procurement.stats(), "raw_documents": await c.raw_tenders.count()}

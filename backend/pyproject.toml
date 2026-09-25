@@ -13,6 +13,9 @@ dependencies = [
     "pymongo>=4.10",
     "httpx>=0.28",
     "tzdata>=2026.4",
+    "pyjwt>=2.9",
+    "argon2-cffi>=23.1",
+    "email-validator>=2.2",
 ]
 
 [dependency-groups]

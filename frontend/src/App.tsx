@@ -1,39 +1,66 @@
-import { useEffect, useState } from 'react'
+import { App as AntApp, ConfigProvider, Result, Spin } from 'antd'
+import ukUA from 'antd/locale/uk_UA'
+import dayjs from 'dayjs'
+import 'dayjs/locale/uk'
+import { lazy, Suspense, type ReactNode } from 'react'
+import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router'
+import type { Role } from './api/client'
+import { AuthProvider } from './auth/AuthContext'
+import { useAuth } from './auth/context'
+import AppLayout from './layout/AppLayout'
+import LoginPage from './pages/LoginPage'
 
-type Health = { status: string; version: string; checks: Record<string, string> }
+dayjs.locale('uk')
+
+// сторінки завантажуються окремими частинами бандла лише при першому переході
+const AuditPage = lazy(() => import('./pages/AuditPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SyncPage = lazy(() => import('./pages/SyncPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
+
+/** Маршрут лише для автентифікованих користувачів (і, за потреби, певних ролей). */
+function Protected({ roles, children }: { roles?: Role[]; children: ReactNode }) {
+  const { user, ready, hasRole } = useAuth()
+  const location = useLocation()
+  if (!ready) return <Spin fullscreen />
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (roles && !hasRole(...roles)) {
+    return <Result status="403" title="Недостатньо прав" subTitle="Ця сторінка недоступна для вашої ролі." />
+  }
+  return <Suspense fallback={<Spin />}>{children}</Suspense>
+}
+
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    path: '/',
+    element: (
+      <Protected>
+        <AppLayout />
+      </Protected>
+    ),
+    children: [
+      { index: true, element: <DashboardPage /> },
+      { path: 'sync', element: <Protected roles={['admin', 'analyst']}><SyncPage /></Protected> },
+      { path: 'users', element: <Protected roles={['admin']}><UsersPage /></Protected> },
+      { path: 'settings', element: <Protected roles={['admin']}><SettingsPage /></Protected> },
+      { path: 'audit', element: <Protected roles={['admin']}><AuditPage /></Protected> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: '*', element: <Result status="404" title="Сторінку не знайдено" /> },
+    ],
+  },
+])
 
 export default function App() {
-  const [health, setHealth] = useState<Health | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json() as Promise<Health>)
-      .then(setHealth)
-      .catch((e: unknown) => setError(String(e)))
-  }, [])
-
   return (
-    <main>
-      <h1>Tendoor</h1>
-      <p className="subtitle">Аналітика цінових аномалій публічних закупівель</p>
-      <section>
-        <h2>Стан системи</h2>
-        {error && <p className="bad">API недоступний: {error}</p>}
-        {!health && !error && <p>Перевірка…</p>}
-        {health && (
-          <ul>
-            <li>
-              API v{health.version}: <b className={health.status === 'ok' ? 'good' : 'bad'}>{health.status}</b>
-            </li>
-            {Object.entries(health.checks).map(([name, state]) => (
-              <li key={name}>
-                {name}: <b className={state === 'ok' ? 'good' : 'bad'}>{state}</b>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+    <ConfigProvider locale={ukUA} theme={{ token: { colorPrimary: '#1d5fbf', borderRadius: 6 } }}>
+      <AntApp>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </AntApp>
+    </ConfigProvider>
   )
 }

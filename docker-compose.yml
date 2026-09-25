@@ -31,6 +31,8 @@ services:
       TENDOOR_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-tendoor}:${POSTGRES_PASSWORD:-tendoor}@postgres:5432/${POSTGRES_DB:-tendoor}
       TENDOOR_MONGO_URI: mongodb://mongo:27017
       TENDOOR_CORS_ORIGINS: '["http://localhost:8080","http://localhost:5173"]'
+      TENDOOR_JWT_SECRET: ${TENDOOR_JWT_SECRET:-dev-only-insecure-secret-change-me-0123456789}
+      TENDOOR_COOKIE_SECURE: ${TENDOOR_COOKIE_SECURE:-false}
     ports: ["8000:8000"]
     depends_on:
       postgres: { condition: service_healthy }

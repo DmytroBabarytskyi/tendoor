@@ -172,6 +172,7 @@ class SyncJob(Base):
     __table_args__ = (CheckConstraint("status IN ('queued', 'running', 'done', 'failed')", name="status"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
     status: Mapped[str] = mapped_column(String(10), default="queued", index=True)
     date_from: Mapped[date] = mapped_column(Date)
     date_to: Mapped[date] = mapped_column(Date)
@@ -187,3 +188,58 @@ class SyncJob(Base):
     created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(TS)
     finished_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+# ---------------------------------------------------------------- доступ і аудит (A4)
+
+
+class Role(Base):
+    __tablename__ = "role"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    code: Mapped[str] = mapped_column(String(20), unique=True)
+    name: Mapped[str] = mapped_column(String(60))
+
+
+class AppUser(Base):
+    __tablename__ = "app_user"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    role_id: Mapped[int] = mapped_column(ForeignKey("role.id"))
+    email: Mapped[str] = mapped_column(String(120), unique=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    full_name: Mapped[str] = mapped_column(String(120))
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    # збільшується під час виходу/зміни пароля — усі видані refresh-токени стають недійсними
+    token_version: Mapped[int] = mapped_column(Integer, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+class PipelineConfig(Base):
+    """Параметри аналізу за замовчуванням (A4.3), значення — JSON."""
+
+    __tablename__ = "pipeline_config"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSONB)
+    description: Mapped[str | None] = mapped_column(Text)
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
+    updated_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+
+
+class AuditLog(Base):
+    """Журнал аудиту. Зміни таблиць пише тригер trg_audit, події входу — застосунок."""
+
+    __tablename__ = "audit_log"
+    __table_args__ = (Index("ix_audit_log_entity", "entity", "entity_key"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"), index=True)
+    action: Mapped[str] = mapped_column(String(30))
+    entity: Mapped[str] = mapped_column(String(40))
+    entity_key: Mapped[str | None] = mapped_column(String(80))
+    payload: Mapped[dict | None] = mapped_column(JSONB)
+    ip: Mapped[str | None] = mapped_column(String(45))
+    created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now(), index=True)
