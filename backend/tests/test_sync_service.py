@@ -127,3 +127,20 @@ async def test_worker_loop_handles_tasks_and_survives_claim_errors():
 
     await asyncio.wait_for(_loop("test", stop, 0.01, claim, handle), timeout=5)
     assert handled == ["task-1", "task-2"]
+
+
+async def test_periodic_job_survives_errors_and_stops():
+    from tendoor.worker.__main__ import _periodic
+
+    stop = asyncio.Event()
+    calls = []
+
+    async def job():
+        calls.append(len(calls))
+        if len(calls) == 1:
+            raise RuntimeError("БД недоступна")  # перша спроба падає, наступні тривають
+        if len(calls) == 3:
+            stop.set()
+
+    await asyncio.wait_for(_periodic("test", stop, every=0.01, job=job, delay=0), timeout=5)
+    assert calls == [0, 1, 2]

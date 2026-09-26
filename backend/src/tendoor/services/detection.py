@@ -25,6 +25,19 @@ THRESHOLDS_KEY = "homogeneity.thresholds"
 MAX_ITEMS = 100_000  # межа вибірки: навчання має вкладатися приблизно в хвилину
 
 
+# допустимі межі параметрів, які аналітик може змінити для окремого запиту
+BOUNDS: dict[str, tuple[float, float]] = {
+    "min_group_size": (5, 200),
+    "text_split_min": (10, 500),
+    "text_subgroup_min": (3, 100),
+    "extreme_iqr_factor": (1.5, 10),
+    "z_strong": (2, 10),
+    "min_price_z": (1.5, 10),
+    "mad_floor": (0.01, 1),
+    "anomaly_threshold": (0.05, 0.95),
+}
+
+
 class DetectionError(ValueError):
     pass
 
@@ -47,14 +60,27 @@ class DetectionService:
         """Параметри за замовчуванням (A4.3) + перевизначення аналітика; невідомі ключі відхиляються."""
         stored = (await self._config.get(DEFAULTS_KEY) or {}).get("value", {})
         merged = DetectionParams.from_dict(stored).as_dict()
+        kinds = {
+            k: f.type if isinstance(f.type, str) else getattr(f.type, "__name__", str(f.type))
+            for k, f in DetectionParams.__dataclass_fields__.items()
+        }
         for key, value in (overrides or {}).items():
             if key not in merged:
                 raise DetectionError(f"невідомий параметр моделі: {key}")
-            if not isinstance(value, type(merged[key])) and not (
-                isinstance(merged[key], float) and isinstance(value, int)
-            ):
-                raise DetectionError(f"параметр {key} має бути типу {type(merged[key]).__name__}")
-            merged[key] = value
+            kind = str(kinds[key])
+            is_num = isinstance(value, (int, float)) and not isinstance(value, bool)
+            ok = (
+                (kind == "bool" and isinstance(value, bool))
+                or (kind == "int" and isinstance(value, int) and not isinstance(value, bool))
+                or (kind.startswith("float") and is_num)
+                or ("None" in kind and value is None)
+            )
+            if not ok:
+                raise DetectionError(f"параметр {key}: некоректний тип значення")
+            if value is not None and key in BOUNDS and not BOUNDS[key][0] <= value <= BOUNDS[key][1]:
+                lo, hi = BOUNDS[key]
+                raise DetectionError(f"параметр {key} має бути в межах {lo}…{hi}")
+            merged[key] = float(value) if kind.startswith("float") and value is not None else value
         return merged
 
     async def preview(self, f: AnalysisFilters) -> dict:

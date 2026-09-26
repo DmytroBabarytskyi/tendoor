@@ -294,6 +294,9 @@ class FakeDetection:
     async def preview(self, f):
         return {"n_items": 3, "homogeneity": {"index": 0.9, "level": "good"}}
 
+    async def params(self, overrides=None):
+        return {"min_group_size": 10, "z_strong": 4.0, "anomaly_threshold": None, **(overrides or {})}
+
     async def submit(self, user_id, f, overrides=None):
         self.submitted.append((user_id, f, overrides))
         return self.analysis.add(user_id, status="queued")

@@ -13,6 +13,7 @@ from collections.abc import Awaitable, Callable
 from tendoor.config import get_settings
 from tendoor.infra.container import Container
 from tendoor.infra.prozorro import ProzorroClient
+from tendoor.services.maintenance import MaintenanceService
 from tendoor.services.sync import NormalizationService, SyncService
 
 log = logging.getLogger("tendoor.worker")
@@ -37,6 +38,23 @@ async def _loop(
                 await asyncio.wait_for(stop.wait(), timeout=poll)
             continue
         await handle(task)
+
+
+async def _periodic(
+    name: str, stop: asyncio.Event, every: float, job: Callable[[], Awaitable], delay: float
+) -> None:
+    """Періодичне завдання; помилка одного запуску не зупиняє наступні."""
+    wait = delay
+    while not stop.is_set():
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=wait)
+        if stop.is_set():
+            break
+        try:
+            await job()
+        except Exception:
+            log.exception("Завдання «%s» завершилося помилкою", name)
+        wait = every
 
 
 async def main() -> None:
@@ -76,8 +94,10 @@ async def main() -> None:
             )
             await c.detection.process(request)
 
+        maintenance = MaintenanceService(c.analysis, c.config, settings.model_dir)
         poll = settings.worker_poll_seconds
         await asyncio.gather(
+            _periodic("очищення", stop, 24 * 3600, maintenance.run, delay=60),
             _loop("синхронізація", stop, poll, c.sync_jobs.claim_next, run_sync),
             _loop("аналіз", stop, min(poll, 2.0), c.analysis.claim_next_request, run_analysis),
         )

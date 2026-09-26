@@ -40,6 +40,7 @@ export type AnalysisRequest = {
   status: 'queued' | 'running' | 'done' | 'failed'
   cpv_prefixes: string[]
   unit_codes: string[]
+  params?: Record<string, unknown>
   date_from: string
   date_to: string
   homogeneity: number | null

@@ -70,3 +70,13 @@ async def test_results_require_finished_request(client, login, fake):
 
 async def test_analysis_requires_authentication(client):
     assert (await client.post("/api/analysis/preview", json=BODY)).status_code == 401
+
+
+async def test_params_endpoint_is_for_analysts(client, login):
+    auditor = await login("auditor@test.ua")
+    assert (await client.get("/api/analysis/params", headers=auditor)).status_code == 403
+    analyst = await login("analyst@test.ua")
+    body = (await client.get("/api/analysis/params", headers=analyst)).json()
+    assert body["defaults"]["z_strong"] == 4.0
+    assert body["bounds"]["anomaly_threshold"] == [0.05, 0.95]
+    assert body["calibrator_threshold"] == pytest.approx(0.6)

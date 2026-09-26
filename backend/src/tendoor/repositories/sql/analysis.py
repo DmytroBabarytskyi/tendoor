@@ -374,6 +374,14 @@ class SqlAnalysisRepository:
             ).mappings()
             return [dict(r) for r in rows]
 
+    async def artifact_paths(self) -> set[str]:
+        """Шляхи артефактів, на які ще посилаються запуски (решта файлів — сироти після очищення)."""
+        async with self._sf() as s:
+            rows = await s.execute(
+                text("SELECT artifact_path FROM model_run WHERE artifact_path IS NOT NULL")
+            )
+            return {r[0] for r in rows}
+
     async def purge_stale_runs(self, days: int) -> int:
         async with self._sf() as s, s.begin():
             return (await s.execute(text("CALL sp_purge_stale_runs(:d, 0)"), {"d": days})).scalar() or 0

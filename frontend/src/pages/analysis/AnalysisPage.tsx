@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
+import { useAuth } from '@/auth/context'
 import CpvPicker, { type CpvOption } from '@/components/CpvPicker'
 import DateRangePicker, { type Range } from '@/components/DateRangePicker'
 import { EmptyState, Page, PageHeader, Panel } from '@/components/page'
@@ -14,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { dateTime, isoDay, shortDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import AdvancedParams, { type Overrides } from './AdvancedParams'
 import HomogeneityCard from './HomogeneityCard'
 import type { AnalysisRequest, Preview } from './types'
 
@@ -21,6 +23,8 @@ const prefix = (code: string) => code.replace(/0+$/, '').padEnd(2, '0')
 
 export default function AnalysisPage() {
   const navigate = useNavigate()
+  const { hasRole } = useAuth()
+  const [params, setParams] = useState<Overrides>({})
   const [cpv, setCpv] = useState<CpvOption[]>([])
   const [period, setPeriod] = useState<Range | null>({ from: subDays(new Date(), 29), to: new Date() })
   const [units, setUnits] = useState<string[]>([])
@@ -72,7 +76,7 @@ export default function AnalysisPage() {
     if (!selection) return
     setSubmitting(true)
     try {
-      const r = await api<AnalysisRequest>('/analysis/requests', { method: 'POST', body: JSON.stringify(selection) })
+      const r = await api<AnalysisRequest>('/analysis/requests', { method: 'POST', body: JSON.stringify({ ...selection, params }) })
       toast.success(r.from_cache ? 'Результат для цих умов уже є — відкрито одразу' : 'Аналіз запущено')
       navigate(`/analysis/${r.id}`)
     } catch (e) {
@@ -128,6 +132,7 @@ export default function AnalysisPage() {
                 )}
               </div>
             </div>
+            {hasRole('admin', 'analyst') && <AdvancedParams value={params} onChange={setParams} />}
             <div className="flex flex-wrap items-center gap-3 border-t pt-5">
               <Button size="lg" disabled={blocked || submitting} onClick={submit}>
                 {submitting ? <LoaderCircle className="animate-spin" /> : <FlaskConical />}

@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
-import { ArrowLeft, Download, ExternalLink, LoaderCircle, OctagonX, Search, SearchX } from 'lucide-react'
+import { ArrowLeft, Archive, Download, ExternalLink, LoaderCircle, OctagonX, RotateCw, Search, SearchX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { api, download } from '@/api/client'
 import Chart from '@/components/Chart'
@@ -57,6 +57,8 @@ function Training() {
 export default function ResultPage() {
   const { id } = useParams()
   const { resolved } = useTheme()
+  const navigate = useNavigate()
+  const [rerunning, setRerunning] = useState(false)
   const [req, setReq] = useState<AnalysisRequest | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cats, setCats] = useState<Category[]>([])
@@ -196,6 +198,42 @@ export default function ResultPage() {
             <div className="mt-1 opacity-90">{req.message}</div>
           </div>
         </div>
+      )}
+
+      {done && !req.run && (
+        <Panel>
+          <EmptyState icon={Archive} title="Результат більше не зберігається">
+            {req.message ?? 'Дані цього аналізу видалено за терміном зберігання.'}
+            <div className="mt-4">
+              <Button
+                disabled={rerunning}
+                onClick={async () => {
+                  setRerunning(true)
+                  try {
+                    const r = await api<AnalysisRequest>('/analysis/requests', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        cpv_prefixes: req.cpv_prefixes,
+                        date_from: req.date_from,
+                        date_to: req.date_to,
+                        unit_codes: req.unit_codes,
+                        params: req.params ?? {},
+                      }),
+                    })
+                    navigate(`/analysis/${r.id}`)
+                  } catch (e) {
+                    toast.error((e as Error).message)
+                  } finally {
+                    setRerunning(false)
+                  }
+                }}
+              >
+                {rerunning ? <LoaderCircle className="animate-spin" /> : <RotateCw />}
+                Повторити аналіз з тими самими умовами
+              </Button>
+            </div>
+          </EmptyState>
+        </Panel>
       )}
 
       {done && m && (

@@ -6,10 +6,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from tendoor.api.deps import CurrentUser, container
+from tendoor.api.deps import AnalystUser, CurrentUser, container
+from tendoor.ml.calibration import load_calibrator
 from tendoor.repositories.base import UserData
 from tendoor.repositories.sql.analysis import AnalysisFilters
-from tendoor.services.detection import DetectionError
+from tendoor.services.detection import BOUNDS, DetectionError
 
 router = APIRouter(tags=["A2 Виявлення аномалій"])
 MAX_DAYS = 366
@@ -109,6 +110,17 @@ async def _own_request(request: Request, request_id: int, user: UserData) -> dic
     if r is None or (user.role == "auditor" and r["user_id"] != user.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Запит не знайдено")
     return r
+
+
+@router.get("/analysis/params")
+async def params(_: AnalystUser, request: Request):
+    """Параметри виявлення за замовчуванням і допустимі межі — для перевизначення аналітиком."""
+    cal = load_calibrator()
+    return {
+        "defaults": await _svc(request).params(),
+        "bounds": BOUNDS,
+        "calibrator_threshold": cal.meta.get("threshold") if cal else None,
+    }
 
 
 @router.get("/analysis/cpv")
