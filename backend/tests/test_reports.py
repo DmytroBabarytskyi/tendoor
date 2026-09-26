@@ -34,6 +34,15 @@ def test_xlsx_report_structure():
         "date_published": datetime(2026, 9, 1, tzinfo=UTC),
         "verdict_status": "confirmed",
         "verdict_reason": "overpriced",
+        "contributions": [
+            {"feature": "abs_z", "label": "Сила відхилення від медіани групи", "value": 5.1, "points": 42.3},
+            {
+                "feature": "text_dist",
+                "label": "Відмінність опису від решти групи",
+                "value": 0.4,
+                "points": 10.8,
+            },
+        ],
     }
     cats = [
         {
@@ -51,5 +60,6 @@ def test_xlsx_report_structure():
     rows = list(wb["Аномалії"].iter_rows(values_only=True))
     assert rows[1][:5] == (97.5, 180.0, "KGM", 18.0, 10.0)
     assert rows[1][12:14] == ("підтверджено", "завищена ціна")
-    assert rows[1][14].endswith("UA-2026-09-01-000001-a")
+    assert rows[1][14] == "Сила відхилення від медіани групи +42; Відмінність опису від решти групи +11"
+    assert rows[1][15].endswith("UA-2026-09-01-000001-a")
     assert wb["Зведення"]["B5"].value == "1531"

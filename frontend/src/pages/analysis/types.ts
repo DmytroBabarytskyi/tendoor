@@ -31,6 +31,7 @@ export type RunInfo = {
     anomaly_share: number
     n_groups: number
     seconds: number
+    importance?: { feature: string; label: string; points: number }[]
   } | null
   error: string | null
 }

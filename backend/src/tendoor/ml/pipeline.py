@@ -27,10 +27,11 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler, normalize
 
 from tendoor.ml.calibration import add_features, load_calibrator
+from tendoor.ml.explain import FEATURE_LABELS, shapley_values, top_contributions
 from tendoor.ml.packaging import normalize_packs
 from tendoor.ml.text import lemmatize
 
-PIPELINE_VERSION = "v2"
+PIPELINE_VERSION = "v2.1"  # v2.1: пояснення рішень (значення Шеплі)
 MAD_TO_SIGMA = 1.4826  # MAD → стандартне відхилення для нормального розподілу
 CPV_LEVELS = (8, 5, 4)  # код, категорія, клас ДК 021
 
@@ -310,6 +311,37 @@ def analyse_group(g: pd.DataFrame, p: DetectionParams) -> tuple[pd.DataFrame, di
     return out, info
 
 
+# ---------------------------------------------------------------- пояснення рішень
+
+EXPLAIN_MIN_SHARE = 0.5  # пояснюються позиції з імовірністю ≥ половини порогу: аномалії й близькі до них
+
+
+def _explain(items: pd.DataFrame, mask: pd.Series, prob: np.ndarray, threshold: float, cal, p) -> list[dict]:
+    """Внески ознак (значення Шеплі) для підозрілих позицій; повертає глобальну важливість — середній |φ|."""
+    analysed = items.loc[mask]
+    candidates = analysed[prob >= threshold * EXPLAIN_MIN_SHARE]
+    normal = analysed[prob < threshold * EXPLAIN_MIN_SHARE]
+    if candidates.empty or len(normal) < 10:
+        return []
+    background = normal.sample(min(100, len(normal)), random_state=p.random_state)
+    phi, _ = shapley_values(cal, candidates, background, random_state=p.random_state)
+    values = candidates[cal.features].to_numpy(dtype=float)
+    contributions = top_contributions(phi, values, cal.features)
+    items.loc[candidates.index, "contributions"] = pd.Series(
+        contributions, index=candidates.index, dtype=object
+    )
+    mean_abs = np.abs(phi).mean(axis=0) * 100
+    order = np.argsort(-mean_abs)
+    return [
+        {
+            "feature": cal.features[i],
+            "label": FEATURE_LABELS.get(cal.features[i], cal.features[i]),
+            "points": round(float(mean_abs[i]), 2),
+        }
+        for i in order
+    ]
+
+
 # ---------------------------------------------------------------- основна функція
 
 
@@ -350,6 +382,8 @@ def run_detection(df: pd.DataFrame, p: DetectionParams | None = None) -> Detecti
     items["rule_anomaly"] = items["is_anomaly"]  # рішення першого (некерованого) етапу
     items = add_features(items, d)
 
+    items["contributions"] = None
+    importance: list[dict] = []
     calibrator = load_calibrator() if p.calibrate else None
     if calibrator is not None:
         # другий етап: ризик — імовірність підтвердження аудитором (модель донавчена на вердиктах)
@@ -359,6 +393,7 @@ def run_detection(df: pd.DataFrame, p: DetectionParams | None = None) -> Detecti
             items.loc[mask, "risk"] = 100 * prob
             threshold = p.anomaly_threshold or calibrator.meta.get("threshold", 0.5)
             items.loc[mask, "is_anomaly"] = prob >= threshold
+            importance = _explain(items, mask, prob, threshold, calibrator, p)
         counts = items[items["is_anomaly"]].groupby("group").size()
         for gr in groups:
             gr.n_anomalies = int(counts.get(gr.label, 0))
@@ -378,6 +413,7 @@ def run_detection(df: pd.DataFrame, p: DetectionParams | None = None) -> Detecti
         "mean_silhouette": round(float(np.mean(sils)), 4) if sils else None,
         "n_pack_converted": int(items["pack_converted"].sum()),
         "calibrator": calibrator.meta.get("version") if calibrator is not None else None,
+        "importance": importance,
         "seconds": round(time.perf_counter() - started, 2),
     }
     return DetectionResult(items=items, groups=groups, metrics=metrics)

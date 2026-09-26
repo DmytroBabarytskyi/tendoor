@@ -335,6 +335,8 @@ class AnomalyResult(Base):
     model_price: Mapped[float | None] = mapped_column(Float)
     model_unit: Mapped[str | None] = mapped_column(String(8))
     pack_size: Mapped[float | None] = mapped_column(Float)
+    # внески ознак у ризик (значення Шеплі, пункти 0–100) — для підозрілих позицій
+    contributions: Mapped[list | None] = mapped_column(JSONB)
 
 
 # ---------------------------------------------------------------- аудит і звітність (A3)

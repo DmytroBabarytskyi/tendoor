@@ -103,7 +103,7 @@ def test_calibrator_learns_from_verdicts_and_roundtrips(tmp_path):
 def test_default_run_uses_saved_calibrator():
     df = _oil_market(60, seed=2)
     res = run_detection(df)
-    assert PIPELINE_VERSION == "v2"
+    assert PIPELINE_VERSION == "v2.1"
     assert res.metrics["calibrator"]
     risk = res.items["risk"].dropna()
     assert risk.between(0, 100).all()
@@ -134,3 +134,33 @@ def test_explain_uses_model_unit_for_converted_packs():
         "unit_price_base": 120.0,
     }
     assert "120.00 грн/LTR" in explain(legacy) and "фасовки" not in explain(legacy)
+
+
+def test_shapley_contributions_sum_to_risk_minus_base():
+    """Властивість ефективності: Σφ ≈ f(x) − E[f(фон)]; найбільший внесок у різко дорожчої позиції — |z|."""
+    from tendoor.ml.explain import FEATURE_LABELS, shapley_values, top_contributions
+
+    df = _oil_market(80, seed=3)
+    df.loc[5, "unit_price_base"] = 60 * 9
+    res = run_detection(df, DetectionParams(calibrate=False))
+    d = prepare(df, DetectionParams()).set_index(res.items.index)
+    x = add_features(res.items, d)
+    y = (x["abs_z"] > 3).astype(int).to_numpy().copy()
+    y[:5] = 1
+    cal = Calibrator.fit(x, y)
+    target = x[x["item_id"] == 5]
+    phi, base = shapley_values(cal, target, x, n_permutations=64)
+    assert abs(phi.sum() - (cal.predict_proba(target)[0] - base)) < 0.05
+    top = top_contributions(phi, target[FEATURES].to_numpy(dtype=float), FEATURES)[0]
+    assert top and set(FEATURE_LABELS) == set(FEATURES)
+    assert top[0]["label"] == FEATURE_LABELS[top[0]["feature"]]
+    assert abs(top[0]["points"]) >= abs(top[-1]["points"])
+
+
+def test_default_run_explains_suspicious_items():
+    df = _oil_market(60, seed=4)
+    df.loc[7, "unit_price_base"] = 60 * 12
+    res = run_detection(df)
+    flagged = res.items[res.items["is_anomaly"]]
+    assert len(flagged) and flagged["contributions"].map(lambda c: isinstance(c, list)).all()
+    assert res.metrics["importance"] and res.metrics["importance"][0]["label"]

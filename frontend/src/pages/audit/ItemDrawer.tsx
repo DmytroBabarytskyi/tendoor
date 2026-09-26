@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/context'
+import Contributions, { type Contribution } from '@/components/Contributions'
 import { Kbd } from '@/components/page'
 import { Pill, RiskMeter } from '@/components/status'
 import { VERDICT_TONE } from '@/components/status-meta'
@@ -47,6 +48,7 @@ type Card = {
     is_anomaly: boolean
     model_price: number | null
     model_unit: string | null
+    contributions: Contribution[] | null
   } | null
   analogs: { item_id: number; description: string; unit_price_base: number; quantity_base: number; entity_name: string; entity_region: string | null }[]
   verdict: Verdict | null
@@ -190,6 +192,16 @@ export default function ItemDrawer({
                 </div>
                 <p className="mt-2 text-sm text-pretty">{r.explanation}</p>
               </div>
+            )}
+
+            {r?.contributions && r.contributions.length > 0 && (
+              <section>
+                <h4 className="mb-1 font-sans text-sm font-semibold">Що вплинуло на ризик</h4>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Внесок кожної ознаки в пунктах ризику: червоне підвищує, зелене знижує відносно звичайної позиції.
+                </p>
+                <Contributions items={r.contributions} />
+              </section>
             )}
 
             <section>

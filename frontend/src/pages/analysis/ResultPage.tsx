@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { api, download } from '@/api/client'
+import BarList from '@/components/BarList'
 import Chart from '@/components/Chart'
 import { EmptyState, Kbd, Page, PageHeader, Panel } from '@/components/page'
 import Pagination from '@/components/Pagination'
@@ -403,11 +404,23 @@ export default function ResultPage() {
             onNext={idx >= 0 && idx < items.length - 1 ? () => setOpened(items[idx + 1].item_id) : undefined}
             onPrev={idx > 0 ? () => setOpened(items[idx - 1].item_id) : undefined}
           />
-          {req.homogeneity_details && (
-            <Panel className="mt-4 max-w-xl" title="Однорідність вибірки">
-              <HomogeneityCard h={req.homogeneity_details} nItems={req.homogeneity_details.n_items} />
-            </Panel>
-          )}
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {m.importance && m.importance.length > 0 && (
+              <Panel
+                title="Що найбільше впливає на ризик у цьому аналізі"
+                description="Середній внесок ознаки в ризик підозрілих позицій, пунктів (значення Шеплі)"
+              >
+                <BarList
+                  rows={m.importance.slice(0, 8).map((f) => ({ key: f.feature, label: f.label, value: Math.round(f.points * 10) / 10 }))}
+                />
+              </Panel>
+            )}
+            {req.homogeneity_details && (
+              <Panel title="Однорідність вибірки">
+                <HomogeneityCard h={req.homogeneity_details} nItems={req.homogeneity_details.n_items} />
+              </Panel>
+            )}
+          </div>
         </>
       )}
     </Page>

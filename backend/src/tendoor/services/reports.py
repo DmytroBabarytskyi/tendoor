@@ -36,6 +36,13 @@ def _sheet(ws, headers: list[str], rows: list[list], widths: list[int]) -> None:
     ws.auto_filter.ref = ws.dimensions
 
 
+def _factors(contributions: list | None, k: int = 3) -> str:
+    """Три найбільші внески в ризик: «Сила відхилення від медіани групи +19; …»."""
+    if not contributions:
+        return ""
+    return "; ".join(f"{c['label']} {c['points']:+.0f}" for c in contributions[:k])
+
+
 def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list[dict], author: str) -> bytes:
     wb = Workbook()
     ws = wb.active
@@ -79,6 +86,7 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
             "Дата",
             "Вердикт",
             "Причина",
+            "Головні чинники ризику",
             "Посилання",
         ],
         [
@@ -98,11 +106,12 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
                 a["date_published"].strftime("%d.%m.%Y"),
                 STATUS_UA.get(a.get("verdict_status") or "", ""),
                 REASON_UA.get(a.get("verdict_reason") or "", ""),
+                _factors(a.get("contributions")),
                 f"https://prozorro.gov.ua/tender/{a['tender_code']}",
             ]
             for a in anomalies
         ],
-        [8, 12, 9, 13, 12, 50, 12, 40, 11, 20, 24, 11, 18, 22, 45],
+        [8, 12, 9, 13, 12, 50, 12, 40, 11, 20, 24, 11, 18, 22, 48, 45],
     )
     _sheet(
         wb.create_sheet("Групи"),

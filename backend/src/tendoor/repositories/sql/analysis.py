@@ -305,6 +305,7 @@ class SqlAnalysisRepository:
                     "model_price": _none_if_nan(r.price),
                     "model_unit": r.unit,
                     "pack_size": _none_if_nan(r.pack_size) if r.pack_converted else None,
+                    "contributions": r.contributions if isinstance(r.contributions, list) else None,
                 }
                 for r in items.itertuples(index=False)
             ]
