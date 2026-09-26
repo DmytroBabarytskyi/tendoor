@@ -11,43 +11,55 @@ export type Point = {
   quantity: number
 }
 
-// Перевірено валідатором палітри (контраст, дальтонізм): синій — перший категорійний слот,
-// червоний — статус «критично»; колір дублюється формою маркера та легендою.
-const NORMAL = '#2a78d6'
-const ANOMALY = '#d03b3b'
-const INK_MUTED = '#898781'
-const GRID = '#e1e0d9'
+// Кольори беруться з токенів теми (--chart-*), перевірених валідатором палітри для обох тем
+// (дальтонізм, насиченість, контраст); форма маркера й легенда дублюють колір.
+type Colors = { normal: string; anomaly: string; grid: string; axis: string; text: string; surface: string }
+const FALLBACK: Colors = { normal: '#2f6fb0', anomaly: '#c2412d', grid: '#e8e1d5', axis: '#8a8074', text: '#6b6257', surface: '#fffdf9' }
+
+export function chartColors(): Colors {
+  if (typeof document === 'undefined') return FALLBACK
+  const css = getComputedStyle(document.documentElement)
+  const v = (name: string, fb: string) => css.getPropertyValue(name).trim() || fb
+  return {
+    normal: v('--chart-normal', FALLBACK.normal),
+    anomaly: v('--chart-anomaly', FALLBACK.anomaly),
+    grid: v('--chart-grid', FALLBACK.grid),
+    axis: v('--chart-axis', FALLBACK.axis),
+    text: v('--muted-foreground', FALLBACK.text),
+    surface: v('--card', FALLBACK.surface),
+  }
+}
 
 const fmt = (v: number) => v.toLocaleString('uk-UA', { maximumFractionDigits: 2 })
 
-function base(xName: string, yName: string, log: boolean): ChartOption {
+function base(xName: string, yName: string, log: boolean, c: Colors): ChartOption {
   const axis = (name: string) => ({
     name,
     nameLocation: 'middle',
     nameGap: 32,
     type: log ? 'log' : 'value',
     scale: true,
-    axisLine: { lineStyle: { color: '#c3c2b7' } },
-    axisLabel: { color: INK_MUTED, formatter: (v: number) => fmt(v) },
-    splitLine: { lineStyle: { color: GRID, width: 1 } },
-    nameTextStyle: { color: '#52514e' },
+    axisLine: { lineStyle: { color: c.grid } },
+    axisLabel: { color: c.axis, formatter: (v: number) => fmt(v) },
+    splitLine: { lineStyle: { color: c.grid, width: 1 } },
+    nameTextStyle: { color: c.text },
   })
   return {
     grid: { left: 70, right: 24, top: 40, bottom: 52 },
-    legend: { top: 0, right: 0, textStyle: { color: '#52514e' } },
-    tooltip: { trigger: 'item', confine: true },
+    legend: { top: 0, right: 0, textStyle: { color: c.text } },
+    tooltip: { trigger: 'item', confine: true, backgroundColor: c.surface, borderColor: c.grid, textStyle: { color: c.text } },
     xAxis: axis(xName),
     yAxis: { ...axis(yName), nameGap: 56 },
   }
 }
 
-function series(points: Point[], xy: (p: Point) => [number, number], median?: number, unit?: string) {
+function series(points: Point[], xy: (p: Point) => [number, number], c: Colors, median?: number, unit?: string) {
   const make = (anomaly: boolean) => ({
     name: anomaly ? 'Аномалія' : 'Звичайна ціна',
     type: 'scatter',
     symbol: anomaly ? 'triangle' : 'circle',
     symbolSize: anomaly ? 12 : 8,
-    itemStyle: { color: anomaly ? ANOMALY : NORMAL, opacity: anomaly ? 0.95 : 0.55, borderColor: '#fff', borderWidth: 1 },
+    itemStyle: { color: anomaly ? c.anomaly : c.normal, opacity: anomaly ? 0.95 : 0.55, borderColor: c.surface, borderWidth: 1 },
     z: anomaly ? 3 : 2,
     data: points.filter((p) => p.is_anomaly === anomaly).map((p) => ({ value: xy(p), point: p })),
     tooltip: {
@@ -68,8 +80,8 @@ function series(points: Point[], xy: (p: Point) => [number, number], median?: nu
           markLine: {
             silent: true,
             symbol: 'none',
-            lineStyle: { color: INK_MUTED, type: 'dashed', width: 1 },
-            label: { formatter: `медіана ${fmt(median)}`, color: '#52514e', position: 'insideEndTop' },
+            lineStyle: { color: c.axis, type: 'dashed', width: 1 },
+            label: { formatter: `медіана ${fmt(median)}`, color: c.text, position: 'insideEndTop' },
             data: [{ yAxis: median }],
           },
         }
@@ -79,12 +91,12 @@ function series(points: Point[], xy: (p: Point) => [number, number], median?: nu
 }
 
 /** Ціна за одиницю проти обсягу (логарифмічні осі): видно і завищення, і демпінг. */
-export function priceVolumeOption(points: Point[], unit: string, median?: number): ChartOption {
-  return { ...base(`Обсяг, ${unit}`, `Ціна, грн/${unit}`, true), series: series(points, (p) => [p.quantity, p.price], median, unit) }
+export function priceVolumeOption(points: Point[], unit: string, median?: number, c: Colors = chartColors()): ChartOption {
+  return { ...base(`Обсяг, ${unit}`, `Ціна, грн/${unit}`, true, c), series: series(points, (p) => [p.quantity, p.price], c, median, unit) }
 }
 
 /** Проєкція групи на перші дві головні компоненти (як у тезі, рис. 1а). */
-export function pcaOption(points: Point[], unit: string): ChartOption {
+export function pcaOption(points: Point[], unit: string, c: Colors = chartColors()): ChartOption {
   const valid = points.filter((p) => p.pc1 != null && p.pc2 != null)
-  return { ...base('PC1', 'PC2', false), series: series(valid, (p) => [p.pc1 as number, p.pc2 as number], undefined, unit) }
+  return { ...base('PC1', 'PC2', false, c), series: series(valid, (p) => [p.pc1 as number, p.pc2 as number], c, undefined, unit) }
 }

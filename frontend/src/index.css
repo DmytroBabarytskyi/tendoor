@@ -1,4 +1,190 @@
-body {
-  margin: 0;
-  background: #f5f7fa;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/source-serif-4";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tendoor — палітра «білий віск»: теплі кремові поверхні, теплий графітовий текст,
+ * теракотовий акцент. Статусні кольори (критично / увага / норма / інформація) окремі від акценту
+ * й завжди йдуть у парі з іконкою чи підписом. Усі пари тексту перевірено на контраст WCAG AA (≥ 4,5:1),
+ * кольори діаграм — валідатором палітри (дальтонізм, мінімальна насиченість) для обох тем.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f7f3ec;
+  --foreground: #2a241d;
+  --card: #fffdf9;
+  --card-foreground: #2a241d;
+  --popover: #fffdf9;
+  --popover-foreground: #2a241d;
+  --primary: #b4532f;
+  --primary-foreground: #fffbf5;
+  --secondary: #efe8dc;
+  --secondary-foreground: #2a241d;
+  --muted: #f0eadf;
+  --muted-foreground: #6b6257;
+  --accent: #ede4d5;
+  --accent-foreground: #2a241d;
+  --destructive: #b42318;
+  --border: #e5ddd0;
+  --input: #ddd4c4;
+  --ring: #c9744f;
+
+  --critical: #b42318;
+  --critical-soft: #fbe9e5;
+  --warning: #9a5b0b;
+  --warning-soft: #fbf0dc;
+  --success: #2f7a4b;
+  --success-soft: #e6f2e9;
+  --info: #2f6690;
+  --info-soft: #e5eef5;
+
+  /* діаграми: звичайна ціна / аномалія (форма маркера дублює колір) */
+  --chart-normal: #2f6fb0;
+  --chart-anomaly: #c2412d;
+  --chart-grid: #e8e1d5;
+  --chart-axis: #8a8074;
+
+  /* гравітаційна сітка */
+  --grid-line: rgba(122, 104, 82, 0.16);
+  --grid-glow: rgba(180, 83, 47, 0.55);
+
+  --sidebar: #f2ede4;
+  --sidebar-foreground: #2a241d;
+  --sidebar-primary: #b4532f;
+  --sidebar-primary-foreground: #fffbf5;
+  --sidebar-accent: #e9e0d1;
+  --sidebar-accent-foreground: #2a241d;
+  --sidebar-border: #e2d9ca;
+  --sidebar-ring: #c9744f;
+}
+
+.dark {
+  --background: #1b1916;
+  --foreground: #ede7dc;
+  --card: #24211e;
+  --card-foreground: #ede7dc;
+  --popover: #292521;
+  --popover-foreground: #ede7dc;
+  --primary: #dc7c5a;
+  --primary-foreground: #1b1916;
+  --secondary: #2f2b27;
+  --secondary-foreground: #ede7dc;
+  --muted: #2b2824;
+  --muted-foreground: #a89f92;
+  --accent: #34302b;
+  --accent-foreground: #ede7dc;
+  --destructive: #f07a6a;
+  --border: #3a3530;
+  --input: #443e38;
+  --ring: #dc7c5a;
+
+  --critical: #f07a6a;
+  --critical-soft: #3a2420;
+  --warning: #e3a64a;
+  --warning-soft: #372c1c;
+  --success: #6fc08e;
+  --success-soft: #1f3226;
+  --info: #7fb2dc;
+  --info-soft: #1e2c38;
+
+  --chart-normal: #5a91d0;
+  --chart-anomaly: #e0604e;
+  --chart-grid: #35312c;
+  --chart-axis: #9a9184;
+
+  --grid-line: rgba(237, 225, 205, 0.1);
+  --grid-glow: rgba(220, 124, 90, 0.6);
+
+  --sidebar: #201e1b;
+  --sidebar-foreground: #ede7dc;
+  --sidebar-primary: #dc7c5a;
+  --sidebar-primary-foreground: #1b1916;
+  --sidebar-accent: #2e2a26;
+  --sidebar-accent-foreground: #ede7dc;
+  --sidebar-border: #34302b;
+  --sidebar-ring: #dc7c5a;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Source Serif 4 Variable", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-serif tracking-tight;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

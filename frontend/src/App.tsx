@@ -1,16 +1,16 @@
-import { App as AntApp, ConfigProvider, Result, Spin } from 'antd'
-import ukUA from 'antd/locale/uk_UA'
-import dayjs from 'dayjs'
-import 'dayjs/locale/uk'
+import { LoaderCircle, MapPinOff, ShieldX } from 'lucide-react'
 import { lazy, Suspense, type ReactNode } from 'react'
-import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router'
+import { createBrowserRouter, Link, Navigate, RouterProvider, useLocation } from 'react-router'
 import type { Role } from './api/client'
 import { AuthProvider } from './auth/AuthContext'
 import { useAuth } from './auth/context'
+import { EmptyState } from './components/page'
+import { Button } from './components/ui/button'
+import { Toaster } from './components/ui/sonner'
+import { TooltipProvider } from './components/ui/tooltip'
 import AppLayout from './layout/AppLayout'
 import LoginPage from './pages/LoginPage'
-
-dayjs.locale('uk')
+import { ThemeProvider } from './theme/ThemeProvider'
 
 // сторінки завантажуються окремими частинами бандла лише при першому переході
 const AnalysisPage = lazy(() => import('./pages/analysis/AnalysisPage'))
@@ -23,16 +23,39 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SyncPage = lazy(() => import('./pages/SyncPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
 
+function Loading() {
+  return (
+    <div className="grid min-h-[40vh] place-items-center text-muted-foreground" role="status">
+      <LoaderCircle className="size-6 animate-spin" />
+      <span className="sr-only">Завантаження…</span>
+    </div>
+  )
+}
+
 /** Маршрут лише для автентифікованих користувачів (і, за потреби, певних ролей). */
 function Protected({ roles, children }: { roles?: Role[]; children: ReactNode }) {
   const { user, ready, hasRole } = useAuth()
   const location = useLocation()
-  if (!ready) return <Spin fullscreen />
+  if (!ready) return <Loading />
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (roles && !hasRole(...roles)) {
-    return <Result status="403" title="Недостатньо прав" subTitle="Ця сторінка недоступна для вашої ролі." />
+    return (
+      <EmptyState icon={ShieldX} title="Недостатньо прав" className="min-h-[50vh]">
+        Ця сторінка недоступна для вашої ролі.
+      </EmptyState>
+    )
   }
-  return <Suspense fallback={<Spin />}>{children}</Suspense>
+  return <Suspense fallback={<Loading />}>{children}</Suspense>
+}
+
+function NotFound() {
+  return (
+    <EmptyState icon={MapPinOff} title="Сторінку не знайдено" className="min-h-[50vh]">
+      <Button asChild variant="outline" size="sm" className="mt-2">
+        <Link to="/">На головну</Link>
+      </Button>
+    </EmptyState>
+  )
 }
 
 const router = createBrowserRouter([
@@ -54,19 +77,20 @@ const router = createBrowserRouter([
       { path: 'settings', element: <Protected roles={['admin']}><SettingsPage /></Protected> },
       { path: 'audit', element: <Protected roles={['admin']}><AuditPage /></Protected> },
       { path: 'profile', element: <ProfilePage /> },
-      { path: '*', element: <Result status="404" title="Сторінку не знайдено" /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
 ])
 
 export default function App() {
   return (
-    <ConfigProvider locale={ukUA} theme={{ token: { colorPrimary: '#1d5fbf', borderRadius: 6 } }}>
-      <AntApp>
+    <ThemeProvider>
+      <TooltipProvider delayDuration={250}>
         <AuthProvider>
           <RouterProvider router={router} />
         </AuthProvider>
-      </AntApp>
-    </ConfigProvider>
+        <Toaster position="bottom-right" richColors closeButton />
+      </TooltipProvider>
+    </ThemeProvider>
   )
 }

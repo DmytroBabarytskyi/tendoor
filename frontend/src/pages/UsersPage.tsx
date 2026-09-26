@@ -1,167 +1,205 @@
-import { PlusOutlined } from '@ant-design/icons'
-import { App, Button, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from 'antd'
-import dayjs from 'dayjs'
-import { useEffect, useState } from 'react'
-import { api, ROLE_NAMES, type Role, type User } from '../api/client'
-import { useAuth } from '../auth/context'
+import { KeyRound, LoaderCircle, Plus } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
+import { api, ROLE_NAMES, type Role, type User } from '@/api/client'
+import { useAuth } from '@/auth/context'
+import { Page, PageHeader, Panel } from '@/components/page'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { dateTime } from '@/lib/format'
 
-const roleOptions = (Object.keys(ROLE_NAMES) as Role[]).map((r) => ({ value: r, label: ROLE_NAMES[r] }))
-const PASSWORD_RULES = [
-  { required: true, message: 'Вкажіть пароль' },
-  { min: 10, message: 'Щонайменше 10 символів' },
-]
+const ROLES = Object.keys(ROLE_NAMES) as Role[]
+const MIN_PASSWORD = 10
 
-type CreateValues = { email: string; full_name: string; role: Role; password: string }
+function RoleSelect({ value, onChange, disabled, className }: { value: Role; onChange: (r: Role) => void; disabled?: boolean; className?: string }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as Role)} disabled={disabled}>
+      <SelectTrigger className={className}><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {ROLES.map((r) => (
+          <SelectItem key={r} value={r}>{ROLE_NAMES[r]}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
 
 export default function UsersPage() {
   const { user: me } = useAuth()
-  const { message } = App.useApp()
   const [users, setUsers] = useState<User[] | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [creating, setCreating] = useState(false)
   const [resetFor, setResetFor] = useState<User | null>(null)
-  const [createForm] = Form.useForm<CreateValues>()
-  const [resetForm] = Form.useForm<{ password: string }>()
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'auditor' as Role, password: '' })
+  const [newPassword, setNewPassword] = useState('')
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let alive = true
     api<User[]>('/users').then(
       (list) => alive && setUsers(list),
-      (e: Error) => message.error(e.message),
+      (e: Error) => toast.error(e.message),
     )
     return () => {
       alive = false
     }
-  }, [reloadKey, message])
+  }, [reloadKey])
 
   const patch = async (id: number, body: Partial<User> & { password?: string }) => {
     try {
       const updated = await api<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
       setUsers((list) => list?.map((u) => (u.id === id ? updated : u)) ?? null)
-      message.success('Збережено')
+      toast.success('Збережено')
       return true
     } catch (e) {
-      message.error((e as Error).message)
+      toast.error((e as Error).message)
       return false
     }
   }
 
-  const create = async (values: CreateValues) => {
+  const create = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
     try {
-      await api<User>('/users', { method: 'POST', body: JSON.stringify(values) })
-      message.success('Користувача створено')
+      await api<User>('/users', { method: 'POST', body: JSON.stringify(form) })
+      toast.success('Користувача створено')
       setCreating(false)
-      createForm.resetFields()
+      setForm({ full_name: '', email: '', role: 'auditor', password: '' })
       setReloadKey((k) => k + 1)
-    } catch (e) {
-      message.error((e as Error).message)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setBusy(false)
     }
   }
 
   return (
-    <>
-      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3}>Користувачі</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating(true)}>
-          Новий користувач
-        </Button>
-      </Space>
-      <Table<User>
-        rowKey="id"
-        loading={users === null}
-        dataSource={users ?? []}
-        pagination={false}
-        scroll={{ x: 800 }}
-        columns={[
-          { title: 'ПІБ', dataIndex: 'full_name' },
-          { title: 'Email', dataIndex: 'email' },
-          {
-            title: 'Роль',
-            dataIndex: 'role',
-            render: (role: Role, u) => (
-              <Select
-                value={role}
-                options={roleOptions}
-                style={{ width: 170 }}
-                disabled={u.id === me?.id}
-                onChange={(r) => patch(u.id, { role: r })}
-              />
-            ),
-          },
-          {
-            title: 'Активний',
-            dataIndex: 'is_active',
-            render: (active: boolean, u) => (
-              <Switch checked={active} disabled={u.id === me?.id} onChange={(v) => patch(u.id, { is_active: v })} />
-            ),
-          },
-          {
-            title: 'Останній вхід',
-            dataIndex: 'last_login_at',
-            render: (d: string | null) => (d ? dayjs(d).format('DD.MM.YYYY HH:mm') : <Tag>ще не входив</Tag>),
-          },
-          {
-            title: '',
-            key: 'actions',
-            render: (_, u) => (
-              <Button size="small" onClick={() => setResetFor(u)}>
-                Змінити пароль
-              </Button>
-            ),
-          },
-        ]}
+    <Page>
+      <PageHeader
+        eyebrow="Адміністрування"
+        title="Користувачі"
+        description="Облікові записи й ролі. Зміни фіксуються в журналі аудиту разом з автором."
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <Plus /> Новий користувач
+          </Button>
+        }
       />
+      <Panel bodyClassName="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-5">Користувач</TableHead>
+              <TableHead>Роль</TableHead>
+              <TableHead>Активний</TableHead>
+              <TableHead>Останній вхід</TableHead>
+              <TableHead className="pr-5" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users === null
+              ? [0, 1, 2].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={5} className="px-5"><Skeleton className="h-8" /></TableCell>
+                  </TableRow>
+                ))
+              : users.map((u) => (
+                  <TableRow key={u.id} className={u.is_active ? '' : 'opacity-60'}>
+                    <TableCell className="pl-5">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8">
+                          <AvatarFallback className="bg-muted text-xs">{u.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{u.full_name}{u.id === me?.id && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(ви)</span>}</div>
+                          <div className="truncate text-xs text-muted-foreground">{u.email}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <RoleSelect value={u.role} className="h-8 w-44" disabled={u.id === me?.id} onChange={(r) => patch(u.id, { role: r })} />
+                    </TableCell>
+                    <TableCell>
+                      <Switch checked={u.is_active} disabled={u.id === me?.id} onCheckedChange={(v) => patch(u.id, { is_active: v })} aria-label="Активний" />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular">{u.last_login_at ? dateTime(u.last_login_at) : 'ще не входив'}</TableCell>
+                    <TableCell className="pr-5 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => setResetFor(u)}>
+                        <KeyRound /> Пароль
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+          </TableBody>
+        </Table>
+      </Panel>
 
-      <Modal
-        title="Новий користувач"
-        open={creating}
-        onCancel={() => setCreating(false)}
-        onOk={() => createForm.submit()}
-        okText="Створити"
-        cancelText="Скасувати"
-        destroyOnHidden
-      >
-        <Form form={createForm} layout="vertical" onFinish={create} initialValues={{ role: 'auditor' }}>
-          <Form.Item name="full_name" label="ПІБ" rules={[{ required: true, min: 2 }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input autoComplete="off" />
-          </Form.Item>
-          <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
-            <Select options={roleOptions} />
-          </Form.Item>
-          <Form.Item name="password" label="Початковий пароль" rules={PASSWORD_RULES}>
-            <Input.Password autoComplete="new-password" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent>
+          <form onSubmit={create} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle className="font-serif text-xl">Новий користувач</DialogTitle>
+              <DialogDescription>Початковий пароль передайте користувачу особисто; його можна змінити в профілі.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="u-name">ПІБ</Label>
+              <Input id="u-name" required minLength={2} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="u-email">Email</Label>
+              <Input id="u-email" type="email" required autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Роль</Label>
+              <RoleSelect value={form.role} className="w-full" onChange={(r) => setForm({ ...form, role: r })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="u-pass">Початковий пароль</Label>
+              <Input id="u-pass" type="password" required minLength={MIN_PASSWORD} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <p className="text-xs text-muted-foreground">Щонайменше {MIN_PASSWORD} символів.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setCreating(false)}>Скасувати</Button>
+              <Button type="submit" disabled={busy}>{busy && <LoaderCircle className="animate-spin" />}Створити</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
-        title={`Новий пароль: ${resetFor?.email ?? ''}`}
-        open={!!resetFor}
-        onCancel={() => setResetFor(null)}
-        onOk={() => resetForm.submit()}
-        okText="Зберегти"
-        cancelText="Скасувати"
-        destroyOnHidden
-      >
-        <Typography.Paragraph type="secondary">Усі активні сесії користувача буде завершено.</Typography.Paragraph>
-        <Form
-          form={resetForm}
-          layout="vertical"
-          onFinish={async ({ password }) => {
-            if (resetFor && (await patch(resetFor.id, { password }))) {
-              setResetFor(null)
-              resetForm.resetFields()
-            }
-          }}
-        >
-          <Form.Item name="password" label="Пароль" rules={PASSWORD_RULES}>
-            <Input.Password autoComplete="new-password" />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
+      <Dialog open={!!resetFor} onOpenChange={(o) => !o && setResetFor(null)}>
+        <DialogContent>
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (resetFor && (await patch(resetFor.id, { password: newPassword }))) {
+                setResetFor(null)
+                setNewPassword('')
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle className="font-serif text-xl">Новий пароль</DialogTitle>
+              <DialogDescription>{resetFor?.email} — усі активні сесії користувача буде завершено.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="r-pass">Пароль</Label>
+              <Input id="r-pass" type="password" required minLength={MIN_PASSWORD} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setResetFor(null)}>Скасувати</Button>
+              <Button type="submit">Зберегти</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Page>
   )
 }

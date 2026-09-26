@@ -1,57 +1,75 @@
-import { ArrowLeftOutlined, DownloadOutlined, LinkOutlined } from '@ant-design/icons'
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Col,
-  Result,
-  Row,
-  Segmented,
-  Space,
-  Spin,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-  Tooltip,
-} from 'antd'
-import dayjs from 'dayjs'
+import { motion } from 'motion/react'
+import { ArrowLeft, Download, ExternalLink, LoaderCircle, OctagonX, Search, SearchX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { api, download } from '../../api/client'
-import Chart from '../../components/Chart'
+import { Link, useParams } from 'react-router'
+import { toast } from 'sonner'
+import { api, download } from '@/api/client'
+import Chart from '@/components/Chart'
+import { EmptyState, Kbd, Page, PageHeader, Panel } from '@/components/page'
+import Pagination from '@/components/Pagination'
+import StatTile from '@/components/StatTile'
+import { RequestStatusPill, RiskMeter } from '@/components/status'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { date, money, pct, ratio } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import { useTheme } from '@/theme/context'
 import ItemDrawer from '../audit/ItemDrawer'
-import { VERDICT_STATUS, type VerdictStatus } from '../audit/verdicts'
+import VerdictPill from '../audit/VerdictPill'
 import { pcaOption, priceVolumeOption, type Point } from './charts'
 import HomogeneityCard from './HomogeneityCard'
-import { STATUS, type AnalysisRequest, type AnomalyRow, type Category } from './types'
+import type { AnalysisRequest, AnomalyRow, Category } from './types'
 
 const PAGE = 20
-const money = (v: number | null) => (v == null ? '—' : Number(v).toLocaleString('uk-UA', { maximumFractionDigits: 2 }))
 
-function riskTag(risk: number | null) {
-  if (risk == null) return '—'
-  const r = Math.round(risk)
-  const [color, label] = r >= 80 ? ['red', 'високий'] : r >= 50 ? ['orange', 'середній'] : ['default', 'низький']
-  return <Tag color={color}>{`${r} · ${label}`}</Tag>
+function Training() {
+  return (
+    <Panel>
+      <div className="flex flex-col items-center gap-4 py-10 text-center">
+        <div className="relative size-16">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="absolute inset-0 rounded-full border-2 border-primary/50"
+              initial={{ scale: 0.4, opacity: 0.9 }}
+              animate={{ scale: 1.4, opacity: 0 }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.66, ease: 'easeOut' }}
+            />
+          ))}
+          <LoaderCircle className="absolute inset-0 m-auto size-7 animate-spin text-primary" />
+        </div>
+        <div>
+          <div className="font-serif text-xl font-semibold">Система вивчає ціни у вибірці</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Групує однорідні товари, оцінює розкид цін і відбирає підозрілі — зазвичай до хвилини. Сторінку можна не оновлювати.
+          </p>
+        </div>
+      </div>
+    </Panel>
+  )
 }
 
 export default function ResultPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
+  const { resolved } = useTheme()
   const [req, setReq] = useState<AnalysisRequest | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cats, setCats] = useState<Category[]>([])
   const [catId, setCatId] = useState<number | null>(null)
+  const [catQuery, setCatQuery] = useState('')
   const [points, setPoints] = useState<{ cat: number; data: Point[] } | null>(null)
   const [view, setView] = useState<'price' | 'pca'>('price')
   const [page, setPage] = useState(1)
+  const [onlyGroup, setOnlyGroup] = useState(false)
   const [rows, setRows] = useState<{ key: string; total: number; items: AnomalyRow[] } | null>(null)
   const [opened, setOpened] = useState<number | null>(null)
   const [reloadRows, setReloadRows] = useState(0)
   const [downloading, setDownloading] = useState(false)
-  const { message } = App.useApp()
 
   // поки модель навчається — опитування статусу
   useEffect(() => {
@@ -93,206 +111,267 @@ export default function ResultPage() {
     }
   }, [done, id, catId])
 
-  const rowsKey = `${page}|${catId ?? ''}|${reloadRows}`
+  const rowsKey = `${page}|${onlyGroup ? catId : ''}|${reloadRows}`
   useEffect(() => {
     if (!done) return
     let alive = true
     const params = new URLSearchParams({ limit: String(PAGE), offset: String((page - 1) * PAGE) })
-    api<{ total: number; items: AnomalyRow[] }>(`/analysis/requests/${id}/anomalies?${params}`).then(
-      (r) => alive && setRows({ key: rowsKey, ...r }),
-    )
+    if (onlyGroup && catId != null) params.set('category_id', String(catId))
+    api<{ total: number; items: AnomalyRow[] }>(`/analysis/requests/${id}/anomalies?${params}`).then((r) => alive && setRows({ key: rowsKey, ...r }))
     return () => {
       alive = false
     }
-  }, [done, id, page, rowsKey])
+  }, [done, id, page, rowsKey, onlyGroup, catId])
 
   const cat = cats.find((c) => c.id === catId)
   const option = useMemo(() => {
     if (!cat || !points || points.cat !== cat.id) return null
-    return view === 'price'
-      ? priceVolumeOption(points.data, cat.base_unit_code, cat.median_price ?? undefined)
-      : pcaOption(points.data, cat.base_unit_code)
-  }, [cat, points, view])
+    void resolved // перебудувати кольори діаграми після зміни теми
+    return view === 'price' ? priceVolumeOption(points.data, cat.base_unit_code, cat.median_price ?? undefined) : pcaOption(points.data, cat.base_unit_code)
+  }, [cat, points, view, resolved])
 
-  if (error) return <Result status="404" title={error} />
-  if (!req) return <Spin />
+  const groups = useMemo(() => {
+    const q = catQuery.trim().toLowerCase()
+    return cats
+      .filter((c) => c.analysed)
+      .filter((c) => !q || c.top_terms.join(' ').toLowerCase().includes(q) || (c.cpv_code ?? '').startsWith(q))
+      .sort((a, b) => b.n_anomalies - a.n_anomalies || b.size - a.size)
+  }, [cats, catQuery])
+
+  if (error) return <EmptyState icon={SearchX} title={error} className="min-h-[50vh]" />
+  if (!req)
+    return (
+      <Page>
+        <Skeleton className="mb-6 h-10 w-96" />
+        <Skeleton className="h-64" />
+      </Page>
+    )
 
   const m = req.run?.metrics
+  const items = rows?.items ?? []
+  const idx = items.findIndex((r) => r.item_id === opened)
   return (
-    <>
-      <Space style={{ marginBottom: 12 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/analysis')}>
-          До вибірки
-        </Button>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Аналіз №{req.id}: ДК 021 {req.cpv_prefixes.join(', ')}
-        </Typography.Title>
-        <Tag color={STATUS[req.status].color}>{STATUS[req.status].label}</Tag>
-        {req.from_cache && <Tag>з кешу</Tag>}
-        {done && (
-          <Button
-            icon={<DownloadOutlined />}
-            loading={downloading}
-            onClick={() => {
-              setDownloading(true)
-              download(`/analysis/requests/${req.id}/report.xlsx`, `tendoor-analysis-${req.id}.xlsx`)
-                .catch((e: Error) => message.error(e.message))
-                .finally(() => setDownloading(false))
-            }}
-          >
-            Звіт XLSX
-          </Button>
-        )}
-      </Space>
-      <Typography.Paragraph type="secondary">
-        Період оголошення {dayjs(req.date_from).format('DD.MM.YYYY')} – {dayjs(req.date_to).format('DD.MM.YYYY')}
-        {req.unit_codes.length > 0 && `, одиниці: ${req.unit_codes.join(', ')}`}
-      </Typography.Paragraph>
+    <Page>
+      <Link to="/analysis" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-4" /> До вибірки
+      </Link>
+      <PageHeader
+        eyebrow={`Аналіз №${req.id}`}
+        title={`ДК 021: ${req.cpv_prefixes.join(', ')}`}
+        description={
+          <>
+            Закупівлі, оголошені {date(req.date_from)} – {date(req.date_to)}
+            {req.unit_codes.length > 0 && `, одиниці ${req.unit_codes.join(', ')}`}
+            {req.from_cache && ' · результат для цих умов уже був — показано без повторного розрахунку'}
+          </>
+        }
+        actions={
+          <>
+            <RequestStatusPill status={req.status} />
+            {done && (
+              <Button
+                variant="outline"
+                disabled={downloading}
+                onClick={() => {
+                  setDownloading(true)
+                  download(`/analysis/requests/${req.id}/report.xlsx`, `tendoor-analysis-${req.id}.xlsx`)
+                    .catch((e: Error) => toast.error(e.message))
+                    .finally(() => setDownloading(false))
+                }}
+              >
+                {downloading ? <LoaderCircle className="animate-spin" /> : <Download />}
+                Звіт XLSX
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {(req.status === 'queued' || req.status === 'running') && (
-        <Card>
-          <Spin /> <Typography.Text style={{ marginLeft: 12 }}>Модель навчається на вибірці — зазвичай до хвилини…</Typography.Text>
-        </Card>
+      {(req.status === 'queued' || req.status === 'running') && <Training />}
+      {req.status === 'failed' && (
+        <div className="flex items-start gap-3 rounded-xl border border-critical/30 bg-critical-soft p-4 text-sm text-critical">
+          <OctagonX className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <div className="font-medium">Аналіз завершився помилкою</div>
+            <div className="mt-1 opacity-90">{req.message}</div>
+          </div>
+        </div>
       )}
-      {req.status === 'failed' && <Alert type="error" showIcon message="Аналіз завершився помилкою" description={req.message} />}
 
       {done && m && (
         <>
-          <Row gutter={[16, 16]}>
-            {[
-              ['Проаналізовано позицій', m.n_analysed],
-              ['Аномалій', m.n_anomalies],
-              ['Частка аномалій', `${(m.anomaly_share * 100).toFixed(1)} %`],
-              ['Однорідних груп', m.n_groups],
-            ].map(([title, value]) => (
-              <Col xs={12} md={6} key={title}>
-                <Card size="small">
-                  <Statistic title={title} value={value} groupSeparator=" " />
-                </Card>
-              </Col>
-            ))}
-          </Row>
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            <StatTile label="Проаналізовано позицій" value={m.n_analysed} hint={`з ${m.n_items.toLocaleString('uk-UA')} у вибірці`} />
+            <StatTile label="Аномальних цін" value={m.n_anomalies} hint="позначено для перевірки" />
+            <StatTile label="Частка аномалій" value={m.anomaly_share} format={(v) => pct(v, 1)} hint="від проаналізованих" />
+            <StatTile label="Однорідних груп" value={m.n_groups} hint={`розрахунок ${m.seconds.toFixed(0)} с`} />
+          </div>
 
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col xs={24} xl={9}>
-              <Card title="Групи" size="small" styles={{ body: { padding: 0 } }}>
-                <Table<Category>
-                  rowKey="id"
-                  size="small"
-                  dataSource={cats.filter((c) => c.analysed)}
-                  pagination={{ pageSize: 8, size: 'small' }}
-                  rowClassName={(c) => (c.id === catId ? 'ant-table-row-selected' : '')}
-                  onRow={(c) => ({ onClick: () => setCatId(c.id), style: { cursor: 'pointer' } })}
-                  columns={[
-                    {
-                      title: 'Група',
-                      render: (_, c) => (
-                        <>
-                          <div>{c.top_terms.slice(0, 3).join(', ') || '—'}</div>
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {c.cpv_code} · {c.base_unit_code}
-                          </Typography.Text>
-                        </>
-                      ),
-                    },
-                    { title: 'Позицій', dataIndex: 'size', align: 'right' },
-                    { title: 'Медіана', dataIndex: 'median_price', align: 'right', render: money },
-                    { title: 'Аном.', dataIndex: 'n_anomalies', align: 'right' },
-                  ]}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} xl={15}>
-              <Card
-                size="small"
-                title={cat ? `Група: ${cat.top_terms.slice(0, 3).join(', ')} (${cat.size} поз.)` : 'Група'}
-                extra={
-                  <Segmented
-                    value={view}
-                    onChange={(v) => setView(v as 'price' | 'pca')}
-                    options={[
-                      { value: 'price', label: 'Ціна × обсяг' },
-                      { value: 'pca', label: 'Простір PCA' },
-                    ]}
-                  />
-                }
-              >
-                {option ? <Chart option={option} height={380} /> : <Spin />}
-              </Card>
-            </Col>
-          </Row>
-
-          <Card title="Аномальні цінові пропозиції (за ризиком)" style={{ marginTop: 16 }}>
-            <Table<AnomalyRow>
-              rowKey="result_id"
-              size="small"
-              loading={rows?.key !== rowsKey}
-              dataSource={rows?.items ?? []}
-              scroll={{ x: 1100 }}
-              pagination={{ current: page, pageSize: PAGE, total: rows?.total ?? 0, onChange: setPage, showSizeChanger: false }}
-              expandable={{ expandedRowRender: (r) => <Typography.Text>{r.explanation}</Typography.Text> }}
-              onRow={(r) => ({ onClick: () => setOpened(r.item_id), style: { cursor: 'pointer' } })}
-              columns={[
-                { title: 'Ризик', dataIndex: 'risk_score', width: 130, render: riskTag },
-                {
-                  title: 'Ціна',
-                  width: 150,
-                  render: (_, r) =>
-                    r.pack_size ? (
-                      <Tooltip title={`У документі: ${money(r.unit_price_base)} грн/${r.base_unit_code}, фасовка ${r.pack_size}`}>
-                        {money(r.model_price ?? r.unit_price_base)} грн/{r.model_unit}*
-                      </Tooltip>
-                    ) : (
-                      `${money(r.model_price ?? r.unit_price_base)} грн/${r.model_unit ?? r.base_unit_code}`
-                    ),
-                },
-                {
-                  title: 'Відхилення',
-                  dataIndex: 'price_ratio',
-                  width: 110,
-                  render: (v: number | null) =>
-                    v == null ? '—' : v >= 1 ? `×${v.toFixed(1)} вище` : `×${(1 / v).toFixed(1)} нижче`,
-                },
-                { title: 'Предмет закупівлі', dataIndex: 'description', ellipsis: true },
-                {
-                  title: 'Вердикт',
-                  dataIndex: 'verdict_status',
-                  width: 170,
-                  render: (s: VerdictStatus | null) =>
-                    s ? <Tag color={VERDICT_STATUS[s].color}>{VERDICT_STATUS[s].label}</Tag> : <Tag>не розглянуто</Tag>,
-                },
-                { title: 'Замовник', dataIndex: 'entity_name', ellipsis: true },
-                {
-                  title: 'Закупівля',
-                  dataIndex: 'tender_code',
-                  width: 220,
-                  render: (code: string) => (
-                    <a
-                      href={`https://prozorro.gov.ua/tender/${code}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(320px,2fr)_3fr]">
+            <Panel
+              title="Групи порівнюваних товарів"
+              description="Ціни порівнюються лише всередині групи"
+              bodyClassName="p-0"
+            >
+              <div className="border-b p-3">
+                <div className="relative">
+                  <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                  <Input value={catQuery} onChange={(e) => setCatQuery(e.target.value)} placeholder="Пошук групи або коду" className="pl-8" />
+                </div>
+              </div>
+              <ul className="max-h-[420px] overflow-y-auto p-1.5">
+                {groups.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => setCatId(c.id)}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors',
+                        c.id === catId ? 'bg-accent' : 'hover:bg-accent/50',
+                      )}
                     >
-                      {code} <LinkOutlined />
-                    </a>
-                  ),
-                },
-              ]}
-            />
-          </Card>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{c.top_terms.slice(0, 3).join(', ') || 'без назви'}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          <span className="font-mono">{c.cpv_code}</span> · {c.base_unit_code} · медіана {money(c.median_price)} грн
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right text-xs tabular">
+                        <span className={cn('block font-semibold', c.n_anomalies ? 'text-critical' : 'text-muted-foreground')}>
+                          {c.n_anomalies} аном.
+                        </span>
+                        <span className="block text-muted-foreground">{c.size} поз.</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {groups.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">Нічого не знайдено</li>}
+              </ul>
+            </Panel>
+            <Panel
+              title={cat ? cat.top_terms.slice(0, 3).join(', ') : 'Група'}
+              description={cat ? `${cat.size} позицій · ${cat.n_anomalies} аномальних · ▲ аномалія, ● звичайна ціна` : undefined}
+              actions={
+                <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as 'price' | 'pca')}>
+                  <ToggleGroupItem value="price">Ціна × обсяг</ToggleGroupItem>
+                  <ToggleGroupItem value="pca">Простір ознак</ToggleGroupItem>
+                </ToggleGroup>
+              }
+            >
+              {option ? <Chart option={option} height={400} /> : <Skeleton className="h-[400px]" />}
+            </Panel>
+          </div>
+
+          <Panel
+            className="mt-4"
+            title="Аномальні цінові пропозиції"
+            description="Від найвищого ризику. Натисніть рядок, щоб розглянути позицію й винести вердикт."
+            actions={
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Switch
+                  checked={onlyGroup}
+                  onCheckedChange={(v) => {
+                    setOnlyGroup(v)
+                    setPage(1)
+                  }}
+                />
+                лише обрана група
+              </label>
+            }
+            bodyClassName="p-0"
+          >
+            <div className={cn('transition-opacity', rows?.key !== rowsKey && 'opacity-60')}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-32 pl-5">Ризик</TableHead>
+                    <TableHead className="text-right">Ціна</TableHead>
+                    <TableHead>Відхилення</TableHead>
+                    <TableHead>Предмет закупівлі</TableHead>
+                    <TableHead>Вердикт</TableHead>
+                    <TableHead className="pr-5">Замовник · закупівля</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((r) => (
+                    <TableRow
+                      key={r.result_id}
+                      className={cn('cursor-pointer', opened === r.item_id && 'bg-accent/60')}
+                      onClick={() => setOpened(r.item_id)}
+                    >
+                      <TableCell className="pl-5">
+                        <RiskMeter risk={r.risk_score} />
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap tabular">
+                        {r.pack_size ? (
+                          <Tooltip>
+                            <TooltipTrigger className="underline decoration-dotted underline-offset-4">
+                              {money(r.model_price ?? r.unit_price_base)} грн/{r.model_unit}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Перераховано з фасовки {r.pack_size}: у документі {money(r.unit_price_base)} грн/{r.base_unit_code}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          `${money(r.model_price ?? r.unit_price_base)} грн/${r.model_unit ?? r.base_unit_code}`
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className={cn('whitespace-nowrap tabular', r.price_ratio != null && (r.price_ratio >= 1 ? 'text-critical' : 'text-info'))}
+                      >
+                        {ratio(r.price_ratio)}
+                      </TableCell>
+                      <TableCell className="max-w-[320px]">
+                        <span className="line-clamp-2">{r.description}</span>
+                      </TableCell>
+                      <TableCell>
+                        <VerdictPill status={r.verdict_status} />
+                      </TableCell>
+                      <TableCell className="max-w-[260px] pr-5">
+                        <span className="block truncate">{r.entity_name}</span>
+                        <a
+                          href={`https://prozorro.gov.ua/tender/${r.tender_code}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary"
+                        >
+                          {r.tender_code} <ExternalLink className="size-3" />
+                        </a>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {rows && items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                        У цій групі аномальних цін не знайдено
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t px-5 pb-3">
+              <span className="pt-3 text-xs text-muted-foreground">
+                У картці: <Kbd>J</Kbd> / <Kbd>K</Kbd> — наступна / попередня позиція
+              </span>
+              <Pagination page={page} pageSize={PAGE} total={rows?.total ?? 0} onChange={setPage} />
+            </div>
+          </Panel>
           <ItemDrawer
             itemId={opened}
             runId={req.model_run_id}
             onClose={() => setOpened(null)}
             onSaved={() => setReloadRows((n) => n + 1)}
+            onNext={idx >= 0 && idx < items.length - 1 ? () => setOpened(items[idx + 1].item_id) : undefined}
+            onPrev={idx > 0 ? () => setOpened(items[idx - 1].item_id) : undefined}
           />
           {req.homogeneity_details && (
-            <Card title="Однорідність вибірки" style={{ marginTop: 16, maxWidth: 560 }}>
+            <Panel className="mt-4 max-w-xl" title="Однорідність вибірки">
               <HomogeneityCard h={req.homogeneity_details} nItems={req.homogeneity_details.n_items} />
-            </Card>
+            </Panel>
           )}
         </>
       )}
-    </>
+    </Page>
   )
 }

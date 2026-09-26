@@ -36,3 +36,6 @@ Thumbs.db
 
 # результати навантажувального тестування (копіюються в docs/notes/loadtest)
 loadtest/results/
+
+# локальні налаштування Claude Code
+.claude/

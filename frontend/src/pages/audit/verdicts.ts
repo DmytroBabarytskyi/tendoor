@@ -1,11 +1,10 @@
 export type VerdictStatus = 'confirmed' | 'not_anomaly' | 'needs_review'
 export type VerdictReason = 'overpriced' | 'underpriced' | 'unit_error' | 'data_error' | 'justified' | 'other'
 
-// статусні кольори завжди в парі з текстом мітки
-export const VERDICT_STATUS: Record<VerdictStatus, { label: string; color: string }> = {
-  confirmed: { label: 'аномалію підтверджено', color: 'red' },
-  not_anomaly: { label: 'аномалії немає', color: 'green' },
-  needs_review: { label: 'потребує перевірки', color: 'gold' },
+export const VERDICT_STATUS: Record<VerdictStatus, { label: string; short: string; key: string }> = {
+  confirmed: { label: 'аномалію підтверджено', short: 'Аномалія', key: '1' },
+  not_anomaly: { label: 'аномалії немає', short: 'Не аномалія', key: '2' },
+  needs_review: { label: 'потребує перевірки', short: 'Перевірити', key: '3' },
 }
 
 export const VERDICT_REASON: Record<VerdictReason, string> = {
