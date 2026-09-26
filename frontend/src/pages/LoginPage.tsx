@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { ArrowRight, Eye, EyeOff, LoaderCircle, OctagonX } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/context'
 import GravityGrid from '@/components/gravity/GravityGrid'
 import Logo from '@/components/Logo'
@@ -85,7 +85,7 @@ export default function LoginPage() {
             className="rounded-2xl border bg-card/85 p-7 shadow-[0_20px_60px_-20px_rgba(80,50,20,0.25)] backdrop-blur-xl"
           >
             <h2 className="text-2xl font-semibold">Вхід</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Обліковий запис видає адміністратор системи.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Увійдіть службовим обліковим записом.</p>
 
             {error && (
               <div role="alert" className="mt-5 flex items-start gap-2 rounded-lg bg-critical-soft px-3 py-2.5 text-sm text-critical">
@@ -136,6 +136,12 @@ export default function LoginPage() {
               Увійти
               {!loading && <ArrowRight />}
             </Button>
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Немає доступу?{' '}
+              <Link to="/register" className="text-primary underline-offset-4 hover:underline">
+                Подати заявку
+              </Link>
+            </p>
           </form>
         </motion.div>
       </div>

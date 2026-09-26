@@ -14,6 +14,8 @@ import { ArrowRight, Building2, Database, FileStack, FlaskConical, GripVertical,
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '@/api/client'
+import { useAuth } from '@/auth/context'
+import { useBadges } from '@/layout/badges'
 import BarList from '@/components/BarList'
 import GravityGrid from '@/components/gravity/GravityGrid'
 import { gravity } from '@/components/gravity/store'
@@ -90,6 +92,8 @@ function SortableTile({ id, children }: { id: string; children: ReactNode }) {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { hasRole } = useAuth()
+  const badges = useBadges()
   const [stats, setStats] = useState<Stats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recent, setRecent] = useState<AnalysisRequest[] | null>(null)
@@ -170,6 +174,29 @@ export default function DashboardPage() {
             </div>
           </SortableContext>
         </DndContext>
+
+        {hasRole('admin', 'auditor') && badges && (
+          <Panel className="mt-4" title="Моя робота з перевірками" bodyClassName="grid gap-3 p-4 sm:grid-cols-3">
+            {(
+              [
+                ['Чекають мого погодження', badges.to_review, 'висновки інших аудиторів'],
+                ['Повернено мені', badges.returned, 'потребують доопрацювання'],
+                ['Мої в роботі й на погодженні', badges.in_work + badges.my_submitted, 'незавершені перевірки'],
+              ] as const
+            ).map(([label, n, hint]) => (
+              <Link
+                key={label}
+                to="/checks"
+                className="rounded-lg border bg-background/50 p-3 transition-colors hover:bg-accent/50"
+                data-no-ripple
+              >
+                <div className="text-xs text-muted-foreground">{label}</div>
+                <div className={cn('mt-1 font-serif text-2xl font-semibold tabular', n > 0 && label === 'Повернено мені' && 'text-warning')}>{n}</div>
+                <div className="text-xs text-muted-foreground">{hint}</div>
+              </Link>
+            ))}
+          </Panel>
+        )}
 
         <div className="mt-4 grid gap-4 lg:grid-cols-5">
           <Panel

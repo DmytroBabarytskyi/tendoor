@@ -20,6 +20,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { useTheme, type ThemeChoice } from '@/theme/context'
+import { useBadges, type Badges } from './badges'
 import CommandPalette from './CommandPalette'
 import { isActive, NAV } from './nav'
 
@@ -32,7 +33,14 @@ function initials(name: string | undefined) {
     .toUpperCase()
 }
 
-function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+function badgeFor(to: string, b: Badges | null): number {
+  if (!b) return 0
+  if (to === '/checks') return b.to_review + b.returned
+  if (to === '/users') return b.registrations ?? 0
+  return 0
+}
+
+function SidebarNav({ onNavigate, badges }: { onNavigate?: () => void; badges: Badges | null }) {
   const { hasRole } = useAuth()
   const { pathname } = useLocation()
   const items = NAV.filter((n) => hasRole(...n.roles))
@@ -62,7 +70,15 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                     >
                       {active && <span className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-primary" />}
                       <n.icon className={cn('size-4', active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
-                      {n.label}
+                      <span className="flex-1">{n.label}</span>
+                      {badgeFor(n.to, badges) > 0 && (
+                        <span
+                          className="min-w-5 rounded-full bg-primary px-1.5 text-center text-[11px] leading-5 font-semibold text-primary-foreground tabular"
+                          aria-label={`${badgeFor(n.to, badges)} очікують дії`}
+                        >
+                          {badgeFor(n.to, badges)}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )
@@ -83,6 +99,7 @@ export default function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const ThemeIcon = THEME_ICON[theme]
+  const badges = useBadges()
 
   return (
     <div className="min-h-svh bg-background">
@@ -93,7 +110,7 @@ export default function AppLayout() {
             <Logo />
           </Link>
         </div>
-        <SidebarNav />
+        <SidebarNav badges={badges} />
         <div className="mt-auto p-4">
           <div className="rounded-lg border border-sidebar-border bg-background/60 p-3 text-xs text-muted-foreground">
             <div className="mb-1 font-medium text-foreground">Підказка</div>
@@ -108,7 +125,7 @@ export default function AppLayout() {
           <div className="px-6 pt-6 pb-6">
             <Logo />
           </div>
-          <SidebarNav onNavigate={() => setMobileOpen(false)} />
+          <SidebarNav badges={badges} onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 

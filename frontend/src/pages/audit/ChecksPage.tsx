@@ -9,39 +9,75 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { dateTime, money } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import ItemDrawer from './ItemDrawer'
-import VerdictPill from './VerdictPill'
+import VerdictPill, { StatePill } from './VerdictPill'
+import { useBadges } from '@/layout/badges'
 import { VERDICT_REASON, VERDICT_STATUS, type Verdict, type VerdictReason, type VerdictStatus } from './verdicts'
 
 const PAGE = 20
 const ALL = '__all'
 
-/** A3.3: історія перевірок — усі вердикти з фільтрами. */
+type Queue = 'review' | 'mine' | 'all'
+const QUEUES: { value: Queue; label: string }[] = [
+  { value: 'review', label: 'На погодженні' },
+  { value: 'mine', label: 'Мої' },
+  { value: 'all', label: 'Усі' },
+]
+
+/** A3: черги перевірок — чужі висновки на погодженні, мої незавершені, історія з фільтрами. */
 export default function ChecksPage() {
   const [status, setStatus] = useState<VerdictStatus | undefined>()
   const [reason, setReason] = useState<VerdictReason | undefined>()
   const [mine, setMine] = useState(false)
+  const [queue, setQueue] = useState<Queue>('review')
+  const badges = useBadges()
   const [page, setPage] = useState(1)
   const [reload, setReload] = useState(0)
   const [data, setData] = useState<{ key: string; total: number; items: Verdict[] } | null>(null)
   const [opened, setOpened] = useState<number | null>(null)
-  const key = `${status}|${reason}|${mine}|${page}|${reload}`
+  const key = `${queue}|${status}|${reason}|${mine}|${page}|${reload}`
 
   useEffect(() => {
     let alive = true
     const p = new URLSearchParams({ limit: String(PAGE), offset: String((page - 1) * PAGE), mine: String(mine) })
+    if (queue !== 'all') p.set('queue', queue)
     if (status) p.set('status_', status)
     if (reason) p.set('reason', reason)
     api<{ total: number; items: Verdict[] }>(`/verdicts?${p}`).then((r) => alive && setData({ key, ...r }))
     return () => {
       alive = false
     }
-  }, [status, reason, mine, page, key])
+  }, [queue, status, reason, mine, page, key])
 
   const items = data?.items ?? []
   const idx = items.findIndex((v) => v.item_id === opened)
   return (
     <Page>
-      <PageHeader eyebrow="Аудит" title="Історія перевірок" description="Усі винесені вердикти. Відкрийте рядок, щоб переглянути позицію чи змінити висновок." />
+      <PageHeader
+        eyebrow="Аудит"
+        title="Перевірки"
+        description="Кожен висновок погоджує інший аудитор. Відкрийте рядок, щоб розглянути позицію, погодити чи повернути висновок."
+      />
+      <div className="mb-4 flex gap-1 border-b">
+        {QUEUES.map((q) => {
+          const n = q.value === 'review' ? badges?.to_review : q.value === 'mine' ? (badges?.in_work ?? 0) + (badges?.my_submitted ?? 0) : 0
+          return (
+            <button
+              key={q.value}
+              onClick={() => {
+                setQueue(q.value)
+                setPage(1)
+              }}
+              className={cn(
+                '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm',
+                queue === q.value ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {q.label}
+              {!!n && <span className="rounded-full bg-primary px-1.5 text-[11px] leading-5 font-semibold text-primary-foreground tabular">{n}</span>}
+            </button>
+          )
+        })}
+      </div>
       <Panel
         bodyClassName="p-0"
         title={
@@ -71,13 +107,14 @@ export default function ChecksPage() {
         }
       >
         {data && items.length === 0 ? (
-          <EmptyState icon={ScanSearch} title="Вердиктів не знайдено">Змініть фільтри або розгляньте позиції в результатах аналізу.</EmptyState>
+          <EmptyState icon={ScanSearch} title={queue === 'review' ? 'Немає висновків, що чекають вашого погодження' : 'Перевірок не знайдено'}>{queue === 'mine' ? 'Візьміть позиції в роботу з результатів аналізу.' : 'Змініть фільтри або розгляньте позиції в результатах аналізу.'}</EmptyState>
         ) : (
           <div className={cn('transition-opacity', data?.key !== key && 'opacity-60')}>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-5">Змінено</TableHead>
+                  <TableHead>Стан</TableHead>
                   <TableHead>Висновок</TableHead>
                   <TableHead>Причина</TableHead>
                   <TableHead>Предмет</TableHead>
@@ -90,8 +127,9 @@ export default function ChecksPage() {
                 {items.map((v) => (
                   <TableRow key={v.id} className={cn('cursor-pointer', opened === v.item_id && 'bg-accent/60')} onClick={() => setOpened(v.item_id)}>
                     <TableCell className="pl-5 whitespace-nowrap text-muted-foreground tabular">{dateTime(v.updated_at)}</TableCell>
+                    <TableCell><StatePill state={v.state} /></TableCell>
                     <TableCell><VerdictPill status={v.status} /></TableCell>
-                    <TableCell className="whitespace-nowrap">{VERDICT_REASON[v.reason]}</TableCell>
+                    <TableCell className="whitespace-nowrap">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
                     <TableCell className="max-w-[300px]"><span className="line-clamp-2">{v.description}</span></TableCell>
                     <TableCell className="text-right whitespace-nowrap tabular">{money(v.unit_price_base)} грн/{v.base_unit_code}</TableCell>
                     <TableCell className="max-w-[220px] truncate">{v.entity_name}</TableCell>

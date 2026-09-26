@@ -2,12 +2,14 @@
 refresh-токен — у httpOnly cookie, недоступному JavaScript."""
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from tendoor.api.deps import CurrentUser, client_ip, container
 from tendoor.services.auth import AuthError, Session, TooManyAttempts
+from tendoor.services.registration import RegistrationError
 
 router = APIRouter(prefix="/auth", tags=["A4 Доступ"])
 
@@ -29,6 +31,14 @@ class LoginIn(BaseModel):
     # без перевірки формату: вхід не має відмовляти через синтаксис адреси, лише через невірні дані
     email: str = Field(min_length=3, max_length=120)
     password: str = Field(max_length=256)
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=2, max_length=120)
+    role: Literal["auditor", "analyst"]
+    password: str = Field(max_length=256)
+    justification: str | None = Field(default=None, max_length=1000)
 
 
 class TokenOut(BaseModel):
@@ -107,3 +117,20 @@ async def change_password(body: ChangePasswordIn, user: CurrentUser, request: Re
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return _respond(request, response, session)
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(body: RegisterIn, request: Request) -> dict:
+    """Заявка на доступ: увійти можна після погодження адміністратором."""
+    try:
+        r = await container(request).registrations.submit(
+            str(body.email), body.full_name, body.role, body.password, body.justification
+        )
+    except RegistrationError as exc:
+        code = status.HTTP_409_CONFLICT if exc.conflict else status.HTTP_422_UNPROCESSABLE_CONTENT
+        raise HTTPException(code, str(exc)) from exc
+    return {
+        "id": r["id"],
+        "status": r["status"],
+        "message": "Заявку надіслано. Увійти можна після погодження.",
+    }

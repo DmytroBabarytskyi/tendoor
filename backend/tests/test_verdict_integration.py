@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import delete, select, text
+from sqlalchemy.exc import IntegrityError
 
 from tendoor.config import Settings
 from tendoor.infra.db import Databases
@@ -14,9 +15,11 @@ from tendoor.repositories.sql.models import AppUser, AuditLog, Item, ProcuringEn
 from tendoor.repositories.sql.procurement import SqlProcurementRepository
 from tendoor.repositories.sql.verdicts import SqlVerdictRepository
 from tendoor.services.normalization import EntityRec, ItemRec, NormalizedTender, cpv_chain
+from tendoor.services.review import ReviewError
 
 pytestmark = pytest.mark.integration
 EMAIL = "verdict-auditor@test.dev"
+REVIEWER = "verdict-reviewer@test.dev"
 TENDER = "test-verdict-1"
 EDRPOU = "TEST-VERDICT"
 
@@ -72,10 +75,12 @@ async def ctx():
                 select(Item.id).join(Tender, Tender.id == Item.tender_id).where(Tender.prozorro_id == TENDER)
             )
         ).scalar_one()
-    user = await SqlUserRepository(d.session_factory).create(
-        None, EMAIL, "Тест Аудитор", "auditor", hash_password("Pass-word-123")
+    users = SqlUserRepository(d.session_factory)
+    user = await users.create(None, EMAIL, "Тест Аудитор", "auditor", hash_password("Pass-word-123"))
+    reviewer = await users.create(
+        None, REVIEWER, "Тест Погоджувач", "auditor", hash_password("Pass-word-123")
     )
-    yield d, item_id, user
+    yield d, item_id, user, reviewer
     async with d.session_factory() as s, s.begin():
         await s.execute(
             text(
@@ -87,32 +92,59 @@ async def ctx():
         await s.execute(delete(Verdict).where(Verdict.item_id == item_id))
         await s.execute(delete(Tender).where(Tender.prozorro_id == TENDER))
         await s.execute(delete(ProcuringEntity).where(ProcuringEntity.edrpou == EDRPOU))
-        await s.execute(delete(AuditLog).where(AuditLog.user_id == user.id))
-        await s.execute(delete(AppUser).where(AppUser.id == user.id))
+        await s.execute(delete(AuditLog).where(AuditLog.user_id.in_([user.id, reviewer.id])))
+        await s.execute(delete(AppUser).where(AppUser.id.in_([user.id, reviewer.id])))
     await d.close()
 
 
-async def test_history_and_audit(ctx):
-    d, item_id, user = ctx
+async def test_review_cycle_history_and_audit(ctx):
+    d, item_id, user, reviewer = ctx
     repo = SqlVerdictRepository(d.session_factory)
-    v1 = await repo.upsert(user.id, item_id, None, "needs_review", "other", "перевірити договір")
-    v2 = await repo.upsert(user.id, item_id, None, "confirmed", "unit_error", "ціна за упаковку, а не за кг")
-    await repo.upsert(
-        user.id, item_id, None, "confirmed", "unit_error", "ціна за упаковку, а не за кг"
-    )  # без змін
-    assert v1["id"] == v2["id"] and v2["user_email"] == EMAIL
+    v = await repo.apply(user.id, item_id, None, "take")
+    assert v["state"] == "in_progress" and v["status"] is None and v["user_email"] == EMAIL
+    with pytest.raises(ReviewError, match="в іншого"):
+        await repo.apply(reviewer.id, item_id, None, "take")
+    first = {"status": "needs_review", "reason": "other", "comment": "договір?"}
+    await repo.apply(user.id, item_id, None, "submit", first)
+    with pytest.raises(ReviewError, match="чотирьох очей"):
+        await repo.apply(user.id, item_id, None, "approve")
+    await repo.apply(reviewer.id, item_id, None, "return", {"comment": "уточніть одиницю виміру"})
+    fixed = {"status": "confirmed", "reason": "unit_error", "comment": "ціна за упаковку"}
+    await repo.apply(user.id, item_id, None, "submit", fixed)
+    done = await repo.apply(reviewer.id, item_id, None, "approve", {"comment": None})
+    assert done["state"] == "approved" and done["reviewer_name"] == "Тест Погоджувач" and done["reviewed_at"]
 
     history = await repo.history(item_id)
-    assert [(h["old_status"], h["new_status"]) for h in history] == [
-        ("needs_review", "confirmed"),
-        (None, "needs_review"),
+    assert [(h["old_state"], h["new_state"]) for h in reversed(history)] == [
+        (None, "in_progress"),
+        ("in_progress", "submitted"),
+        ("submitted", "returned"),
+        ("returned", "submitted"),
+        ("submitted", "approved"),
     ]
-    assert history[0]["new_reason"] == "unit_error" and history[0]["user_email"] == EMAIL
+    returned = next(h for h in history if h["new_state"] == "returned")
+    assert returned["comment"] == "уточніть одиницю виміру" and returned["user_email"] == REVIEWER
+    assert {"item_id": item_id, "status": "confirmed", "reason": "unit_error"} in await repo.labels()
 
     async with d.session_factory() as s:
         audit = await s.execute(
-            select(AuditLog.action)
-            .where(AuditLog.entity == "verdict", AuditLog.entity_key == str(v1["id"]))
+            select(AuditLog.action, AuditLog.user_id)
+            .where(AuditLog.entity == "verdict", AuditLog.entity_key == str(v["id"]))
             .order_by(AuditLog.id)
         )
-        assert list(audit.scalars()) == ["INSERT", "UPDATE"]
+        rows = audit.all()
+        assert [a for a, _ in rows] == ["INSERT"] + ["UPDATE"] * 4
+        assert rows[-1][1] == reviewer.id  # автор зміни — погоджувач
+
+
+async def test_four_eyes_is_enforced_by_database(ctx):
+    d, item_id, user, _ = ctx
+    await SqlVerdictRepository(d.session_factory).apply(
+        user.id, item_id, None, "submit", {"status": "confirmed", "reason": "overpriced"}
+    )
+    with pytest.raises(IntegrityError, match="four_eyes"):
+        async with d.session_factory() as s, s.begin():
+            await s.execute(
+                text("UPDATE verdict SET state = 'approved', reviewer_id = user_id WHERE item_id = :i"),
+                {"i": item_id},
+            )

@@ -10,10 +10,12 @@ from tendoor.repositories.mongo.raw_tenders import MongoRawTenderRepository
 from tendoor.repositories.sql.access import SqlAuditRepository, SqlConfigRepository, SqlUserRepository
 from tendoor.repositories.sql.analysis import SqlAnalysisRepository
 from tendoor.repositories.sql.procurement import SqlProcurementRepository
+from tendoor.repositories.sql.registrations import SqlRegistrationRepository
 from tendoor.repositories.sql.sync_jobs import SqlSyncJobRepository
 from tendoor.repositories.sql.verdicts import SqlVerdictRepository
 from tendoor.services.auth import AuthService, LoginLimiter
 from tendoor.services.detection import DetectionService
+from tendoor.services.registration import RegistrationService
 from tendoor.services.users import UserService
 
 
@@ -33,6 +35,7 @@ class Container:
     analysis: SqlAnalysisRepository
     detection: DetectionService
     verdicts: SqlVerdictRepository
+    registrations: RegistrationService
 
     @classmethod
     def build(cls, settings: Settings) -> "Container":
@@ -62,6 +65,7 @@ class Container:
             analysis=analysis,
             detection=DetectionService(analysis, config, settings.model_dir),
             verdicts=SqlVerdictRepository(sf),
+            registrations=RegistrationService(SqlRegistrationRepository(sf), users),
         )
 
     async def close(self) -> None:

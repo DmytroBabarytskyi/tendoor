@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronUp, ExternalLink, LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { BadgeCheck, ChevronDown, ChevronUp, ExternalLink, LoaderCircle, PenLine, Send, Undo2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { useAuth } from '@/auth/context'
@@ -15,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { date, dateTime, money } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { refreshBadges } from '@/layout/badges'
+import { StatePill } from './VerdictPill'
 import { VERDICT_REASON, VERDICT_STATUS, type Verdict, type VerdictHistory, type VerdictReason, type VerdictStatus } from './verdicts'
 
 type Card = {
@@ -81,47 +83,72 @@ export default function ItemDrawer({
   onNext?: () => void
   onPrev?: () => void
 }) {
-  const { hasRole } = useAuth()
+  const { user, hasRole } = useAuth()
   const [card, setCard] = useState<{ id: number; data: Card } | null>(null)
   const [history, setHistory] = useState<VerdictHistory[]>([])
   const [status, setStatus] = useState<VerdictStatus | null>(null)
   const [reason, setReason] = useState<VerdictReason | null>(null)
   const [comment, setComment] = useState('')
+  const [reviewComment, setReviewComment] = useState('')
   const [saving, setSaving] = useState(false)
-  const canJudge = hasRole('admin', 'auditor')
+  const canAct = hasRole('admin', 'auditor')
+
+  const load = useCallback(
+    (id: number) =>
+      Promise.all([
+        api<Card>(`/items/${id}${runId ? `?run_id=${runId}` : ''}`),
+        api<VerdictHistory[]>(`/items/${id}/verdict-history`),
+      ]),
+    [runId],
+  )
 
   useEffect(() => {
     if (itemId == null) return
     let alive = true
-    const q = runId ? `?run_id=${runId}` : ''
-    Promise.all([api<Card>(`/items/${itemId}${q}`), api<VerdictHistory[]>(`/items/${itemId}/verdict-history`)]).then(([c, h]) => {
+    load(itemId).then(([c, h]) => {
       if (!alive) return
       setCard({ id: itemId, data: c })
       setHistory(h)
       setStatus(c.verdict?.status ?? null)
       setReason(c.verdict?.reason ?? null)
       setComment(c.verdict?.comment ?? '')
+      setReviewComment('')
     })
     return () => {
       alive = false
     }
-  }, [itemId, runId])
+  }, [itemId, load])
 
   const data = card && card.id === itemId ? card.data : null
+  const verdict = data?.verdict ?? null
+  const mine = !!verdict && verdict.user_id === user?.id
+  // режим картки: хто дивиться і в якому стані перевірка
+  const mode: 'free' | 'editing' | 'busy' | 'awaiting' | 'review' | 'approved' | 'readonly' = !canAct
+    ? 'readonly'
+    : !verdict
+      ? 'free'
+      : verdict.state === 'approved'
+        ? 'approved'
+        : verdict.state === 'submitted'
+          ? mine
+            ? 'awaiting'
+            : 'review'
+          : mine
+            ? 'editing'
+            : 'busy'
+  const editable = mode === 'free' || mode === 'editing' || mode === 'awaiting'
 
-  const save = async () => {
-    if (itemId == null || !status || !reason) {
-      toast.error('Оберіть висновок і причину')
-      return
-    }
+  const act = async (path: string, method: string, body: object | undefined, done: string) => {
+    if (itemId == null) return
     setSaving(true)
     try {
-      const v = await api<Verdict>(`/items/${itemId}/verdict`, {
-        method: 'PUT',
-        body: JSON.stringify({ status, reason, comment: comment || null, result_id: data?.result?.result_id ?? null }),
-      })
-      toast.success('Вердикт збережено')
-      setHistory(await api<VerdictHistory[]>(`/items/${itemId}/verdict-history`))
+      const v = await api<Verdict>(`/items/${itemId}/${path}`, { method, body: body ? JSON.stringify(body) : undefined })
+      toast.success(done)
+      const [c, h] = await load(itemId)
+      setCard({ id: itemId, data: c })
+      setHistory(h)
+      setReviewComment('')
+      refreshBadges()
       onSaved?.(v)
     } catch (e) {
       toast.error((e as Error).message)
@@ -130,19 +157,31 @@ export default function ItemDrawer({
     }
   }
 
-  // клавіші аудитора: 1/2/3 — висновок, Ctrl+Enter — зберегти, J/K — наступна/попередня позиція
+  const submit = () => {
+    if (!status || !reason) {
+      toast.error('Оберіть висновок і причину')
+      return
+    }
+    const body = { status, reason, comment: comment || null, result_id: data?.result?.result_id ?? null }
+    void act('verdict', 'PUT', body, 'Висновок надіслано на погодження')
+  }
+  const take = () => act('take', 'POST', { result_id: data?.result?.result_id ?? null }, 'Позицію взято в роботу')
+  const review = (decision: 'approve' | 'return') =>
+    act('review', 'POST', { decision, comment: reviewComment || null }, decision === 'approve' ? 'Висновок погоджено' : 'Повернено на доопрацювання')
+
+  // клавіші аудитора: 1/2/3 — висновок, Ctrl+Enter — надіслати, J/K — наступна/попередня позиція
   useEffect(() => {
     if (itemId == null) return
     const onKey = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement)?.closest('textarea, input, [role="combobox"], [role="listbox"]')
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && canJudge) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && editable) {
         e.preventDefault()
-        void save()
+        submit()
         return
       }
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return
       const s = STATUSES.find((x) => VERDICT_STATUS[x].key === e.key)
-      if (s && canJudge) setStatus(s)
+      if (s && editable) setStatus(s)
       else if (e.key.toLowerCase() === 'j') onNext?.()
       else if (e.key.toLowerCase() === 'k') onPrev?.()
     }
@@ -266,16 +305,46 @@ export default function ItemDrawer({
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h4 className="font-sans text-sm font-semibold">Вердикт</h4>
-                {canJudge && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h4 className="flex items-center gap-2 font-sans text-sm font-semibold">
+                  Перевірка {verdict && <StatePill state={verdict.state} />}
+                </h4>
+                {editable && (
                   <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
                     <Kbd>1</Kbd>
                     <Kbd>2</Kbd>
-                    <Kbd>3</Kbd> висновок · <Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> зберегти
+                    <Kbd>3</Kbd> висновок · <Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> надіслати
                   </span>
                 )}
               </div>
+
+              {verdict && (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Автор: {verdict.user_name ?? verdict.user_email ?? '—'}
+                  {verdict.reviewer_name && ` · погоджувач: ${verdict.reviewer_name}`}
+                  {verdict.reviewed_at && `, ${dateTime(verdict.reviewed_at)}`}
+                </p>
+              )}
+              {verdict?.state === 'returned' && verdict.review_comment && (
+                <div className="mb-3 flex gap-2 rounded-lg bg-warning-soft px-3 py-2.5 text-sm">
+                  <Undo2 className="mt-0.5 size-4 shrink-0 text-warning" />
+                  <div>
+                    <div className="font-medium">Повернено на доопрацювання{verdict.reviewer_name && `: ${verdict.reviewer_name}`}</div>
+                    <div className="mt-0.5">{verdict.review_comment}</div>
+                  </div>
+                </div>
+              )}
+              {mode === 'busy' && (
+                <p className="mb-3 rounded-lg bg-muted px-3 py-2.5 text-sm">
+                  Позицію перевіряє {verdict?.user_name ?? 'інший аудитор'}. Коли висновок надішлють, ви зможете його погодити.
+                </p>
+              )}
+              {mode === 'awaiting' && (
+                <p className="mb-3 rounded-lg bg-info-soft px-3 py-2.5 text-sm">
+                  Висновок очікує погодження іншим аудитором. До погодження його ще можна виправити.
+                </p>
+              )}
+
               <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Висновок">
                 {STATUSES.map((s) => {
                   const t = VERDICT_TONE[s]
@@ -286,11 +355,12 @@ export default function ItemDrawer({
                       type="button"
                       role="radio"
                       aria-checked={on}
-                      disabled={!canJudge}
+                      disabled={!editable}
                       onClick={() => setStatus(s)}
                       className={cn(
-                        'flex flex-col items-start gap-1 rounded-lg border p-3 text-left text-sm transition-all disabled:opacity-60',
-                        on ? 'border-transparent ring-2 ring-offset-1 ring-offset-card' : 'hover:bg-accent/50',
+                        'flex flex-col items-start gap-1 rounded-lg border p-3 text-left text-sm transition-all disabled:cursor-default',
+                        !on && !editable && 'opacity-50',
+                        on ? 'border-transparent ring-2 ring-offset-1 ring-offset-card' : editable && 'hover:bg-accent/50',
                         on && t.tone === 'critical' && 'bg-critical-soft ring-critical',
                         on && t.tone === 'success' && 'bg-success-soft ring-success',
                         on && t.tone === 'warning' && 'bg-warning-soft ring-warning',
@@ -298,7 +368,7 @@ export default function ItemDrawer({
                     >
                       <span className="flex w-full items-center justify-between">
                         <t.icon className="size-4" />
-                        <Kbd>{VERDICT_STATUS[s].key}</Kbd>
+                        {editable && <Kbd>{VERDICT_STATUS[s].key}</Kbd>}
                       </span>
                       <span className="font-medium">{VERDICT_STATUS[s].short}</span>
                     </button>
@@ -308,7 +378,7 @@ export default function ItemDrawer({
               <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_1.4fr]">
                 <div className="space-y-1.5">
                   <Label>Причина</Label>
-                  <Select value={reason ?? ''} onValueChange={(v) => setReason(v as VerdictReason)} disabled={!canJudge}>
+                  <Select value={reason ?? ''} onValueChange={(v) => setReason(v as VerdictReason)} disabled={!editable}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Оберіть причину" />
                     </SelectTrigger>
@@ -322,23 +392,53 @@ export default function ItemDrawer({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="comment">Коментар</Label>
+                  <Label htmlFor="comment">Коментар аудитора</Label>
                   <Textarea
                     id="comment"
                     value={comment}
                     maxLength={2000}
-                    disabled={!canJudge}
+                    disabled={!editable}
                     onChange={(e) => setComment(e.target.value)}
                     className="min-h-9"
-                    placeholder="Необов'язково: що побачили в договорі, чим пояснюється ціна…"
+                    placeholder="Що побачили в договорі, чим пояснюється ціна…"
                   />
                 </div>
               </div>
-              {canJudge && (
-                <Button className="mt-4" onClick={save} disabled={saving}>
-                  {saving && <LoaderCircle className="animate-spin" />}
-                  Зберегти вердикт
-                </Button>
+
+              {editable && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button onClick={submit} disabled={saving}>
+                    {saving ? <LoaderCircle className="animate-spin" /> : <Send />}
+                    {mode === 'awaiting' ? 'Оновити висновок' : 'Надіслати на погодження'}
+                  </Button>
+                  {mode === 'free' && (
+                    <Button variant="outline" onClick={take} disabled={saving}>
+                      <PenLine /> Взяти в роботу
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {mode === 'review' && (
+                <div className="mt-4 space-y-3 border-t pt-4">
+                  <Label htmlFor="review-comment">Рішення погоджувача</Label>
+                  <Textarea
+                    id="review-comment"
+                    value={reviewComment}
+                    maxLength={2000}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="min-h-9"
+                    placeholder="Для повернення — що саме доопрацювати; для погодження — необов'язково"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => review('approve')} disabled={saving}>
+                      <BadgeCheck /> Погодити
+                    </Button>
+                    <Button variant="outline" onClick={() => review('return')} disabled={saving || !reviewComment.trim()}>
+                      <Undo2 /> Повернути на доопрацювання
+                    </Button>
+                  </div>
+                </div>
               )}
             </section>
 
@@ -350,10 +450,15 @@ export default function ItemDrawer({
                     <li key={h.id} className="relative">
                       <span className="absolute top-1.5 -left-[25px] size-2.5 rounded-full border-2 border-card bg-primary" />
                       <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <Pill tone={VERDICT_TONE[h.new_status].tone} icon={VERDICT_TONE[h.new_status].icon}>
-                          {VERDICT_STATUS[h.new_status].label}
-                        </Pill>
-                        <span>{VERDICT_REASON[h.new_reason]}</span>
+                        {h.new_state && h.new_state !== h.old_state && <StatePill state={h.new_state} />}
+                        {h.new_status && (h.new_status !== h.old_status || h.new_reason !== h.old_reason) && (
+                          <>
+                            <Pill tone={VERDICT_TONE[h.new_status].tone} icon={VERDICT_TONE[h.new_status].icon}>
+                              {VERDICT_STATUS[h.new_status].label}
+                            </Pill>
+                            {h.new_reason && <span>{VERDICT_REASON[h.new_reason]}</span>}
+                          </>
+                        )}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {h.user_name ?? h.user_email ?? 'система'} · {dateTime(h.changed_at)}

@@ -1,6 +1,6 @@
 """Експеримент v1 → v2 на розмітці аудиторів і донавчання калібратора.
 
-  python -m tendoor.ml.experiments --strata ../docs/notes/labels/strata.json [--save]
+  python -m tendoor.ml.experiments --strata ../docs/notes/labels/strata.json [--save] [--include-submitted]
 
 Розмітка стратифікована за рішенням v1 (топ-50, решта позначених, непозначені), тому метрики
 на всю сукупність оцінюються з вагами Горвіца–Томпсона: вага позиції = розмір страти / розмічено в ній.
@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score
 from sklearn.model_selection import StratifiedKFold
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from tendoor.config import get_settings
 from tendoor.infra.db import Databases
@@ -28,12 +28,17 @@ from tendoor.repositories.sql.analysis import AnalysisFilters, SqlAnalysisReposi
 REFERENCE = AnalysisFilters(("15",), date(2026, 8, 1), date(2026, 9, 30))
 
 
-async def load(strata: dict[int, str]) -> tuple[pd.DataFrame, pd.DataFrame]:
+async def load(strata: dict[int, str], include_submitted: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     dbs = Databases(get_settings())
     df = await SqlAnalysisRepository(dbs.session_factory).load_selection(REFERENCE)
     async with dbs.session_factory() as s:
         rows = (
-            await s.execute(text("SELECT item_id, status FROM verdict WHERE status <> 'needs_review'"))
+            await s.execute(
+                text(
+                    "SELECT item_id, status FROM verdict WHERE status <> 'needs_review' AND state IN :states"
+                ).bindparams(bindparam("states", expanding=True)),
+                {"states": ["approved", "submitted"] if include_submitted else ["approved"]},
+            )
         ).all()
     await dbs.close()
     labels = pd.DataFrame(rows, columns=["item_id", "status"])
@@ -104,12 +109,17 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--strata", required=True)
     parser.add_argument("--save", action="store_true", help="зберегти калібратор, навчений на всій розмітці")
+    parser.add_argument(
+        "--include-submitted",
+        action="store_true",
+        help="враховувати й непогоджені висновки (за замовчуванням — лише погоджені іншим аудитором)",
+    )
     args = parser.parse_args()
     warnings.filterwarnings("ignore")
     with open(args.strata, encoding="utf8") as fh:
         meta = json.load(fh)
     strata = {int(k): v for k, v in meta["strata"].items()}
-    df, labels = asyncio.run(load(strata))
+    df, labels = asyncio.run(load(strata, args.include_submitted))
     n = labels["stratum"].value_counts()
     weights = pd.Series(meta["population"]) / n
     print(f"вибірка: {len(df)} позицій; розмітка: {n.to_dict()} (підтверджено {labels['y'].sum()})")

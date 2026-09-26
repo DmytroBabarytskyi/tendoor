@@ -10,6 +10,7 @@ import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 import AppLayout from './layout/AppLayout'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import { ThemeProvider } from './theme/ThemeProvider'
 
 // сторінки завантажуються окремими частинами бандла лише при першому переході
@@ -60,6 +61,7 @@ function NotFound() {
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
   {
     path: '/',
     element: (

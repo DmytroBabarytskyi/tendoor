@@ -1,10 +1,19 @@
 export type VerdictStatus = 'confirmed' | 'not_anomaly' | 'needs_review'
+export type VerdictState = 'in_progress' | 'submitted' | 'returned' | 'approved'
 export type VerdictReason = 'overpriced' | 'underpriced' | 'unit_error' | 'data_error' | 'justified' | 'other'
 
 export const VERDICT_STATUS: Record<VerdictStatus, { label: string; short: string; key: string }> = {
   confirmed: { label: 'аномалію підтверджено', short: 'Аномалія', key: '1' },
   not_anomaly: { label: 'аномалії немає', short: 'Не аномалія', key: '2' },
   needs_review: { label: 'потребує перевірки', short: 'Перевірити', key: '3' },
+}
+
+// життєвий цикл перевірки: в роботі → на погодженні → погоджено / повернено на доопрацювання
+export const VERDICT_STATE: Record<VerdictState, string> = {
+  in_progress: 'в роботі',
+  submitted: 'на погодженні',
+  returned: 'повернено',
+  approved: 'погоджено',
 }
 
 export const VERDICT_REASON: Record<VerdictReason, string> = {
@@ -19,8 +28,14 @@ export const VERDICT_REASON: Record<VerdictReason, string> = {
 export type Verdict = {
   id: number
   item_id: number
-  status: VerdictStatus
-  reason: VerdictReason
+  state: VerdictState
+  status: VerdictStatus | null
+  reason: VerdictReason | null
+  user_id: number | null
+  reviewer_id: number | null
+  reviewer_name: string | null
+  reviewed_at: string | null
+  review_comment: string | null
   comment: string | null
   updated_at: string
   user_email: string | null
@@ -35,9 +50,11 @@ export type Verdict = {
 export type VerdictHistory = {
   id: number
   old_status: VerdictStatus | null
-  new_status: VerdictStatus
+  new_status: VerdictStatus | null
   old_reason: VerdictReason | null
-  new_reason: VerdictReason
+  new_reason: VerdictReason | null
+  old_state: VerdictState | null
+  new_state: VerdictState | null
   comment: string | null
   changed_at: string
   user_email: string | null

@@ -10,12 +10,14 @@ from tendoor.api.analysis import _own_request, explain
 from tendoor.api.deps import CurrentUser, container, require_roles
 from tendoor.repositories.base import UserData
 from tendoor.services.reports import build_xlsx
+from tendoor.services.review import ReviewError
 
 router = APIRouter(tags=["A3 Аудит і звітність"])
 
 AuditorUser = Depends(require_roles("admin", "auditor"))
 Status = Literal["confirmed", "not_anomaly", "needs_review"]
 Reason = Literal["overpriced", "underpriced", "unit_error", "data_error", "justified", "other"]
+State = Literal["in_progress", "submitted", "returned", "approved"]
 MAX_REPORT_ROWS = 5000
 
 
@@ -41,17 +43,46 @@ async def item_card(item_id: int, _: CurrentUser, request: Request, run_id: int 
     return card
 
 
-@router.put("/items/{item_id}/verdict")
-async def set_verdict(item_id: int, body: VerdictIn, request: Request, user: UserData = AuditorUser):
-    if body.status == "confirmed" and body.reason == "justified":
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "Підтверджена аномалія не може бути обґрунтованою"
-        )
+async def _apply(
+    request: Request, user: UserData, item_id: int, result_id, action: str, payload: dict | None
+):
     if await _repo(request).item_card(item_id, None) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Позицію не знайдено")
-    return await _repo(request).upsert(
-        user.id, item_id, body.result_id, body.status, body.reason, body.comment
-    )
+    try:
+        return await _repo(request).apply(user.id, item_id, result_id, action, payload)
+    except ReviewError as exc:
+        code = status.HTTP_409_CONFLICT if exc.conflict else status.HTTP_422_UNPROCESSABLE_CONTENT
+        if "чотирьох очей" in str(exc):
+            code = status.HTTP_403_FORBIDDEN
+        raise HTTPException(code, str(exc)) from exc
+
+
+class TakeIn(BaseModel):
+    result_id: int | None = None
+
+
+class ReviewIn(BaseModel):
+    decision: Literal["approve", "return"]
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+@router.post("/items/{item_id}/take")
+async def take(item_id: int, request: Request, body: TakeIn | None = None, user: UserData = AuditorUser):
+    """Взяти позицію в роботу: інші аудитори бачать, хто її перевіряє."""
+    return await _apply(request, user, item_id, body.result_id if body else None, "take", None)
+
+
+@router.put("/items/{item_id}/verdict")
+async def set_verdict(item_id: int, body: VerdictIn, request: Request, user: UserData = AuditorUser):
+    """Надіслати висновок на погодження (автор перевірки)."""
+    payload = {"status": body.status, "reason": body.reason, "comment": body.comment}
+    return await _apply(request, user, item_id, body.result_id, "submit", payload)
+
+
+@router.post("/items/{item_id}/review")
+async def review(item_id: int, body: ReviewIn, request: Request, user: UserData = AuditorUser):
+    """Погодити або повернути висновок іншого аудитора (принцип «чотирьох очей»)."""
+    return await _apply(request, user, item_id, None, body.decision, {"comment": body.comment})
 
 
 @router.get("/items/{item_id}/verdict-history")
@@ -65,13 +96,22 @@ async def verdicts(
     request: Request,
     status_: Status | None = None,
     reason: Reason | None = None,
+    state: State | None = None,
+    queue: Literal["mine", "review"] | None = None,
     mine: bool = False,
     limit: int = 50,
     offset: int = 0,
 ):
-    """A3.3: історія перевірок (фільтр status_ — статус вердикту)."""
+    """A3.3: перевірки — черги «мої» й «на погодженні» та історія з фільтрами (status_ — висновок)."""
     items, total = await _repo(request).search(
-        status_, reason, user.id if mine else None, min(limit, 200), max(offset, 0)
+        status_,
+        reason,
+        user.id if mine else None,
+        min(limit, 200),
+        max(offset, 0),
+        state=state,
+        queue=queue,
+        me=user.id,
     )
     return {"total": total, "items": items}
 

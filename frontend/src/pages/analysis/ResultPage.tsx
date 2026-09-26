@@ -363,7 +363,7 @@ export default function ResultPage() {
                         <span className="line-clamp-2">{r.description}</span>
                       </TableCell>
                       <TableCell>
-                        <VerdictPill status={r.verdict_status} />
+                        <VerdictPill status={r.verdict_status} state={r.verdict_state} />
                       </TableCell>
                       <TableCell className="max-w-[260px] pr-5">
                         <span className="block truncate">{r.entity_name}</span>

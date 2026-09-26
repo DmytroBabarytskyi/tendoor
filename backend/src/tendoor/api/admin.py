@@ -1,13 +1,14 @@
 """A4.2–A4.4: користувачі й ролі, параметри аналізу, журнал аудиту."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from tendoor.api.auth import UserOut
 from tendoor.api.deps import AdminUser, CurrentUser, container
+from tendoor.services.registration import RegistrationError
 from tendoor.services.users import UserError
 
 router = APIRouter(tags=["A4 Адміністрування"])
@@ -137,3 +138,51 @@ async def audit_log(
         entity, user_id, action, min(limit, 200), max(offset, 0)
     )
     return AuditPage(total=total, items=items)
+
+
+# ---------------------------------------------------------------- заявки на реєстрацію (A4.1)
+class ApproveIn(BaseModel):
+    role: Literal["auditor", "analyst", "admin"]
+
+
+class RejectIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+def _decided(r: dict | None) -> dict:
+    if r is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявку не знайдено")
+    return r
+
+
+@router.get("/registrations")
+async def registrations(
+    _: AdminUser, request: Request, status_: Literal["pending", "approved", "rejected"] | None = None
+):
+    return await container(request).registrations.list(status_)
+
+
+@router.post("/registrations/{request_id}/approve")
+async def approve_registration(request_id: int, body: ApproveIn, admin: AdminUser, request: Request):
+    try:
+        return _decided(await container(request).registrations.approve(admin.id, request_id, body.role))
+    except RegistrationError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT if exc.conflict else 422, str(exc)) from exc
+
+
+@router.post("/registrations/{request_id}/reject")
+async def reject_registration(request_id: int, body: RejectIn, admin: AdminUser, request: Request):
+    try:
+        return _decided(await container(request).registrations.reject(admin.id, request_id, body.reason))
+    except RegistrationError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT if exc.conflict else 422, str(exc)) from exc
+
+
+@router.get("/badges")
+async def badges(user: CurrentUser, request: Request) -> dict:
+    """Лічильники для меню: мої перевірки, чужі висновки на погодженні, заявки на доступ (адміністратор)."""
+    c = container(request)
+    out = await c.verdicts.queue_counts(user.id)
+    if user.role == "admin":
+        out["registrations"] = await c.registrations.count_pending()
+    return out

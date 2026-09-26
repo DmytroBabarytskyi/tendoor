@@ -91,6 +91,7 @@ export type AnomalyRow = {
   category_id: number
   explanation: string
   verdict_status: 'confirmed' | 'not_anomaly' | 'needs_review' | null
+  verdict_state: 'in_progress' | 'submitted' | 'returned' | 'approved' | null
 }
 
 export const STATUS = {

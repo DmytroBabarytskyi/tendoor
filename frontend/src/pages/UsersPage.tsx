@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { dateTime } from '@/lib/format'
+import { useBadges } from '@/layout/badges'
+import RegistrationsPanel from './RegistrationsPanel'
 
 const ROLES = Object.keys(ROLE_NAMES) as Role[]
 const MIN_PASSWORD = 10
@@ -40,6 +42,8 @@ export default function UsersPage() {
   const [form, setForm] = useState({ full_name: '', email: '', role: 'auditor' as Role, password: '' })
   const [newPassword, setNewPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState<'users' | 'requests'>('users')
+  const badges = useBadges()
 
   useEffect(() => {
     let alive = true
@@ -92,7 +96,27 @@ export default function UsersPage() {
           </Button>
         }
       />
-      <Panel bodyClassName="p-0">
+      <div className="mb-4 flex gap-1 border-b">
+        {(
+          [
+            ['users', 'Користувачі'],
+            ['requests', 'Заявки на доступ'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm ${tab === key ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+          >
+            {label}
+            {key === 'requests' && (badges?.registrations ?? 0) > 0 && (
+              <span className="rounded-full bg-primary px-1.5 text-[11px] leading-5 font-semibold text-primary-foreground">{badges?.registrations}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {tab === 'requests' && <RegistrationsPanel onApproved={() => setReloadKey((k) => k + 1)} />}
+      <Panel bodyClassName="p-0" className={tab === 'users' ? '' : 'hidden'}>
         <Table>
           <TableHeader>
             <TableRow>

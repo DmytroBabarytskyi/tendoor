@@ -20,6 +20,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -343,16 +344,25 @@ class AnomalyResult(Base):
 
 VERDICT_STATUSES = ("confirmed", "not_anomaly", "needs_review")
 VERDICT_REASONS = ("overpriced", "underpriced", "unit_error", "data_error", "justified", "other")
+# життєвий цикл перевірки позиції: в роботі → на погодженні → погоджено / повернено на доопрацювання
+VERDICT_STATES = ("in_progress", "submitted", "returned", "approved")
 
 
 class Verdict(Base):
-    """Висновок аудитора щодо ціни позиції. Прив'язаний до позиції, а не до запуску моделі,
-    тож зберігається між перенавчаннями й слугує розміткою для оцінювання та донавчання."""
+    """Перевірка позиції аудитором і її висновок. Прив'язана до позиції, а не до запуску моделі,
+    тож зберігається між перенавчаннями; погоджені висновки слугують розміткою для донавчання.
+    Погоджує інший аудитор (принцип «чотирьох очей» — обмеження four_eyes)."""
 
     __tablename__ = "verdict"
     __table_args__ = (
         CheckConstraint(f"status IN {VERDICT_STATUSES}", name="status"),
         CheckConstraint(f"reason IN {VERDICT_REASONS}", name="reason"),
+        CheckConstraint(f"state IN {VERDICT_STATES}", name="state"),
+        CheckConstraint(
+            "state IN ('in_progress', 'returned') OR (status IS NOT NULL AND reason IS NOT NULL)",
+            name="complete",
+        ),
+        CheckConstraint("reviewer_id IS NULL OR user_id IS NULL OR reviewer_id <> user_id", name="four_eyes"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -360,16 +370,21 @@ class Verdict(Base):
     anomaly_result_id: Mapped[int | None] = mapped_column(
         ForeignKey("anomaly_result.id", ondelete="SET NULL")
     )
+    # автор висновку — аудитор, який узяв позицію в роботу
     user_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"), index=True)
-    status: Mapped[str] = mapped_column(String(20))
-    reason: Mapped[str] = mapped_column(String(20))
+    state: Mapped[str] = mapped_column(String(12), server_default="submitted", index=True)
+    status: Mapped[str | None] = mapped_column(String(20))
+    reason: Mapped[str | None] = mapped_column(String(20))
     comment: Mapped[str | None] = mapped_column(Text)
+    reviewer_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(TS)
+    review_comment: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
 
 
 class VerdictHistory(Base):
-    """Історія змін вердикту; заповнюється тригером trg_verdict_history."""
+    """Історія змін перевірки (висновок і стан); заповнюється тригером trg_verdict_history."""
 
     __tablename__ = "verdict_history"
 
@@ -377,11 +392,42 @@ class VerdictHistory(Base):
     verdict_id: Mapped[int] = mapped_column(ForeignKey("verdict.id", ondelete="CASCADE"), index=True)
     changed_by: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
     old_status: Mapped[str | None] = mapped_column(String(20))
-    new_status: Mapped[str] = mapped_column(String(20))
+    new_status: Mapped[str | None] = mapped_column(String(20))
     old_reason: Mapped[str | None] = mapped_column(String(20))
-    new_reason: Mapped[str] = mapped_column(String(20))
+    new_reason: Mapped[str | None] = mapped_column(String(20))
+    old_state: Mapped[str | None] = mapped_column(String(12))
+    new_state: Mapped[str | None] = mapped_column(String(12))
     comment: Mapped[str | None] = mapped_column(Text)
     changed_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
+
+
+class RegistrationRequest(Base):
+    """Заявка на доступ (A4): очікує → погоджено (створюється користувач) / відхилено адміністратором."""
+
+    __tablename__ = "registration_request"
+    __table_args__ = (
+        CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="status"),
+        CheckConstraint("requested_role IN ('analyst', 'auditor')", name="role"),
+        Index(
+            "uq_registration_request_pending_email",
+            text("lower(email)"),
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    email: Mapped[str] = mapped_column(String(120))
+    full_name: Mapped[str] = mapped_column(String(120))
+    password_hash: Mapped[str] = mapped_column(Text)
+    requested_role: Mapped[str] = mapped_column(String(20))
+    justification: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), server_default="pending", index=True)
+    decided_by: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
+    decided_at: Mapped[datetime | None] = mapped_column(TS)
+    reject_reason: Mapped[str | None] = mapped_column(Text)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("app_user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(TS, server_default=func.now())
 
 
 class Report(Base):

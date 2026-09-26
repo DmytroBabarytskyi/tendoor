@@ -187,9 +187,11 @@ class FakeContainer:
         self.admin = self.users.add("admin@test.ua", "admin")
         self.analyst = self.users.add("analyst@test.ua", "analyst")
         self.auditor = self.users.add("auditor@test.ua", "auditor")
+        self.auditor2 = self.users.add("auditor2@test.ua", "auditor")
         self.analysis = FakeAnalysis()
         self.detection = FakeDetection(self.analysis)
         self.verdicts = FakeVerdicts()
+        self.registrations = FakeRegistrations()
 
 
 class FakeVerdicts:
@@ -201,29 +203,81 @@ class FakeVerdicts:
             return None
         return {"item": {"item_id": 1}, "result": None, "analogs": [], "verdict": self.items.get(1)}
 
-    async def upsert(self, actor_id, item_id, result_id, status, reason, comment):
-        self.items[item_id] = {
-            "item_id": item_id,
-            "status": status,
-            "reason": reason,
-            "comment": comment,
-            "user_id": actor_id,
-        }
+    async def apply(self, actor_id, item_id, result_id, action, payload=None):
+        from tendoor.services.review import Current, transition
+
+        cur = self.items.get(item_id)
+        changes = transition(
+            Current(cur["state"], cur["user_id"]) if cur else None, action, actor_id, payload
+        )
+        self.items[item_id] = {**(cur or {"item_id": item_id, "status": None, "reason": None}), **changes}
         return self.items[item_id]
 
     async def history(self, item_id):
         return []
 
-    async def search(self, status, reason, user_id, limit, offset):
-        rows = [
-            v
-            for v in self.items.values()
-            if (not status or v["status"] == status) and (not user_id or v["user_id"] == user_id)
-        ]
+    async def search(self, status, reason, user_id, limit, offset, state=None, queue=None, me=None):
+        def ok(v):
+            if queue == "review":
+                return v["state"] == "submitted" and v["user_id"] != me
+            if queue == "mine":
+                return v["user_id"] == me and v["state"] != "approved"
+            return (not status or v["status"] == status) and (not user_id or v["user_id"] == user_id)
+
+        rows = [v for v in self.items.values() if ok(v) and (not state or v["state"] == state)]
         return rows, len(rows)
+
+    async def queue_counts(self, me):
+        vs = self.items.values()
+        return {
+            "in_work": sum(v["user_id"] == me and v["state"] in ("in_progress", "returned") for v in vs),
+            "returned": sum(v["user_id"] == me and v["state"] == "returned" for v in vs),
+            "my_submitted": sum(v["user_id"] == me and v["state"] == "submitted" for v in vs),
+            "to_review": sum(v["state"] == "submitted" and v["user_id"] != me for v in vs),
+        }
 
     async def stats(self):
         return {"by_status_reason": []}
+
+
+class FakeRegistrations:
+    def __init__(self) -> None:
+        self.items: list[dict] = []
+
+    async def submit(self, email, full_name, role, password, justification):
+        from tendoor.services.registration import SELF_SERVICE_ROLES, RegistrationError
+
+        if role not in SELF_SERVICE_ROLES:
+            raise RegistrationError("роль")
+        if any(r["email"] == email and r["status"] == "pending" for r in self.items):
+            raise RegistrationError("дубль", conflict=True)
+        r = {
+            "id": len(self.items) + 1,
+            "email": email,
+            "full_name": full_name,
+            "requested_role": role,
+            "status": "pending",
+        }
+        self.items.append(r)
+        return r
+
+    async def list(self, status):
+        return [r for r in self.items if not status or r["status"] == status]
+
+    async def count_pending(self):
+        return sum(r["status"] == "pending" for r in self.items)
+
+    async def approve(self, actor_id, request_id, role):
+        r = next((x for x in self.items if x["id"] == request_id), None)
+        if r:
+            r |= {"status": "approved", "role": role, "decided_by": actor_id}
+        return r
+
+    async def reject(self, actor_id, request_id, reason):
+        r = next((x for x in self.items if x["id"] == request_id), None)
+        if r:
+            r |= {"status": "rejected", "reject_reason": reason, "decided_by": actor_id}
+        return r
 
 
 class FakeAnalysis:

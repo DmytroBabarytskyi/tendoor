@@ -148,12 +148,14 @@ async def test_item_card_verdicts_and_points(dbs):
     assert (await verdicts.item_card(-1, run)) is None
 
     try:
-        v = await verdicts.upsert(None, top["item_id"], top["result_id"], "confirmed", "overpriced", None)
+        v = await verdicts.apply(
+            None, top["item_id"], top["result_id"], "submit", {"status": "confirmed", "reason": "overpriced"}
+        )
         rows, total = await verdicts.search("confirmed", "overpriced", None, 50, 0)
         assert total >= 1 and any(r["id"] == v["id"] for r in rows)
         assert any(r["status"] == "confirmed" for r in (await verdicts.stats())["by_status_reason"])
         assert {"item_id": top["item_id"], "status": "confirmed", "reason": "overpriced"} in (
-            await verdicts.labels()
+            await verdicts.labels(approved_only=False)
         )
         queue, _ = await repo.anomalies(run, True, None, 10, 0)
         assert next(q for q in queue if q["item_id"] == top["item_id"])["verdict_status"] == "confirmed"
