@@ -25,6 +25,8 @@ METHODS = [
     ("v2, калібратор на першій розмітці (з рішеннями v1)", "v2, calibrator on sighted labels"),
     ("v2, калібратор на сліпій розмітці, монотонний", "v2, monotone calibrator on blind labels"),
     ("гібрид, калібратор на сліпій розмітці, монотонний", "hybrid, same calibrator"),
+    ("v2, калібратор на сліпій + людській, монотонний", "v2, monotone calibrator on blind + human labels"),
+    ("гібрид, калібратор на сліпій + людській, монотонний", "hybrid, same calibrator"),
 ]
 RECALLS = ["recall moderate", "recall strong", "recall unit", "recall lot_total"]
 

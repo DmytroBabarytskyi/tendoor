@@ -20,7 +20,7 @@ Dmytro Babarytskyi, Tetiana Bilova, Oleksandr Babarytskyi
 
 ABSTRACT  (plain text, one paragraph, no LaTeX)
 -----------------------------------------------
-See _abstract.txt (1877 characters, limit 1920). Paste it as one paragraph.
+See _abstract.txt (1927 characters, limit 1920). Paste it as one paragraph.
 
 
 COMMENTS

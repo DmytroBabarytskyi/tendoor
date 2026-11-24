@@ -1,0 +1,7 @@
+method,ap,ap_without_normal_positive,calibrator_gain_mean,calibrator_gain_lo,calibrator_gain_hi,p_gain_le_0
+sigma3,0.3802,0.5654,0.0938,-0.0867,0.2992,0.1625
+iforest_groups,0.3394,0.4144,0.1289,-0.0673,0.3223,0.092
+v1,0.3586,0.5002,0.117,-0.0428,0.3265,0.09
+screening_v2,0.435,0.5228,0.0346,-0.1118,0.2037,0.3535
+calibrator,0.4755,0.7125,,,,
+hybrid,0.3992,0.6248,0.0716,-0.0016,0.1707,0.031

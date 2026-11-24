@@ -218,10 +218,10 @@ def explain(r: dict) -> str:
     reasons = []
     if r["is_extreme"]:
         reasons.append("екстремальне значення (поза межами Q1−3·IQR…Q3+3·IQR)")
-    if r["robust_z"] is not None and abs(r["robust_z"]) >= 3.5:
+    # лише ознаки, що реально впливають на рішення v2 (поріг |z| — як у правилі першого етапу);
+    # щільнісний викид (DBSCAN) на рішення калібратора не впливає, тому аудитору не показується
+    if r["robust_z"] is not None and abs(r["robust_z"]) >= 4:
         reasons.append(f"сильне відхилення (|z| = {abs(r['robust_z']):.1f})")
-    if r["is_noise"]:
-        reasons.append("нетипове поєднання ціни, обсягу й дати (шум DBSCAN)")
     flagged = r["is_anomaly"] or r["is_extreme"]
     text += ". Ознаки: " + "; ".join(reasons) + "." if reasons and flagged else "."
     if r["is_extreme"]:

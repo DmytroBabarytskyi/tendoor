@@ -1,6 +1,6 @@
 %% =====================================================================
 %%  Explainable Detection of Anomalous Unit Prices in Public Procurement:
-%%  Unsupervised Screening Calibrated on Review Verdicts
+%%  Robust Screening and Learned Ranking on Annotated Verdicts
 %%
 %%  Compile:  pdflatex main  ->  pdflatex main     (no BibTeX needed)
 %%  arXiv:    upload arxiv_upload.zip (build_arxiv.py); IEEEtran.cls is on arXiv
@@ -78,9 +78,10 @@ annotation round that displayed the earlier system's decision confirmed its flag
 round, a shift consistent with anchoring ($\kappa=0.82$ between the rounds). On blind labels, the ranking
 model raises the design-weighted average precision (AP) from 0.49 for the screening of the first system
 version and 0.51 for the best statistical rule to 0.81 (95\% bootstrap interval of the gain over the rule:
-0.10--0.44); with the human corrections the gain shrinks and is no longer significant. On injected errors,
+0.10--0.44); with the human corrections the gain over the rule shrinks to 0.09 and is no longer significant
+($-0.09$--0.30). On injected errors,
 flagging gross extremes independently of the ranking model is needed to keep the recall of unit-scale errors.
-Explanations computed with 24 Monte-Carlo permutations are within about one point of a 2{,}000-permutation
+Explanations computed with 24 Monte Carlo permutations are within about one point of a 2{,}000-permutation
 reference on a 0--100 risk scale. The method is implemented in an open-source information system.
 \end{abstract}
 
@@ -94,7 +95,7 @@ human-in-the-loop, audit analytics, decision support
 
 Public procurement accounts for a large share of government spending, and its digitalisation has made
 transaction-level data openly available. In the Ukrainian e-procurement system Prozorro alone,
-207 thousand procurements worth UAH (Ukrainian hryvnia)~463 billion were announced in the fourth quarter of 2025~\cite{prozorro2026q4}; each
+207 thousand procurements worth UAH~463 billion (UAH: Ukrainian hryvnia) were announced in the fourth quarter of 2025~\cite{prozorro2026q4}; each
 procurement contains one or more items with a description, a classification code under the Common
 Procurement Vocabulary (CPV, national version DK~021), a unit of measure, a quantity and --- in contracts or
 in the expected value --- a price. This openness creates an opportunity for continuous, data-driven audit:
@@ -124,13 +125,14 @@ loop. Our contributions are:
   bottom-up aggregation of small groups, and semantic splitting of large groups by their descriptions.
   \item \textbf{A two-stage detector}: unsupervised screening within comparable groups (Tukey extremes,
   robust $z$-scores, DBSCAN in a joint price--quantity--season space) followed by a monotone ranking model
-  trained on annotated verdicts, plus a separate data-error signal. The model's features are
-  product-agnostic, so it can be applied to categories it was not trained on.
-  \item \textbf{Item-level explanations} with Monte-Carlo Shapley values over auditor-readable features,
+  trained on annotation labels, plus a separate data-error signal. The model's features are
+  product-agnostic, which makes it applicable to other categories; on injected errors in a held-out
+  category it remains competitive in F1 but ranks errors worse than screening.
+  \item \textbf{Item-level explanations} with Monte Carlo Shapley values over auditor-readable features,
   with an evaluation of their accuracy, stability and fidelity.
   \item \textbf{An evaluation protocol for label-scarce audit settings}: stratified annotation with
-  Horvitz--Thompson weighting, a blind re-annotation that reveals a shift towards the model's output in a
-  sighted round, a check of language-model labels by a human, and a synthetic benchmark of error types
+  Horvitz--Thompson weighting, a blind re-annotation that shows a shift, consistent with anchoring, between a
+  sighted and a blind round, a check of language-model labels by a human, and a synthetic benchmark of error types
   typical of procurement data.
 \end{enumerate}
 The method is implemented in an information system that synchronises Prozorro data, runs the detector on
@@ -208,8 +210,8 @@ The analysis unit is an item with a positive unit price and quantity. The audito
 publication period and optionally units; the detector returns, for every item, a risk score in $[0,100]$,
 a binary decision and an explanation. The reference selection used for annotation is CPV division~15
 (food products) with the publication filter 1~August--30~September~2026: 16{,}103 items. The first system
-version (v1, see below) analysed 15{,}450 of them in 340 groups; the current version (v2) analyses 15{,}051
-in 321 groups.
+version (v1, see below) analysed 15{,}450 of them in 340 groups; the current version (v2) analyses 15{,}034
+in 320 groups.
 
 %==============================================================================
 \section{Method}\label{sec:method}
@@ -296,7 +298,7 @@ First, prices are heavy-tailed and multiplicative --- a data error easily change
 magnitude --- so all statistics are computed on log prices with robust estimators (the median and the
 median absolute deviation, MAD), and
 extremes are removed before the spread is estimated so that a single lot total does not inflate it.
-Second, groups are small: in v2 the reference selection yields 321 analysed groups with a median of 24
+Second, groups are small: in v2 the reference selection yields 320 analysed groups with a median of 24
 items, and 76\% of them have fewer than 50 items,
 which rules out detectors that need many points per group and motivates bottom-up aggregation by the CPV
 hierarchy. Third, the same price can be normal for one purchase and suspicious for another depending on
@@ -324,7 +326,7 @@ where the median $\tilde\ell_g$ and the median absolute deviation $\mathrm{MAD}_
 $g\setminus E_g$. The floor of 0.15 prevents ordinary market variation of about 15\% from being flagged in
 very homogeneous groups. The screening risk score is $100\,(1-e^{-|z_i|/3})$.
 
-\emph{Density outliers.} DBSCAN~\cite{ester1996dbscan} is run in the PCA projection~\cite{jolliffe2016pca}
+\emph{Density outliers.} DBSCAN~\cite{ester1996dbscan} is run in the principal component analysis (PCA) projection~\cite{jolliffe2016pca}
 of the standardised vector $(2\ell,\ \log q,\ \sin m,\ \cos m)$ --- price weighted twice, quantity and the
 cyclically encoded month --- with $\varepsilon$ chosen at the knee of the sorted $k$-distance
 curve~\cite{satopaa2011kneedle}; its noise points form the set $N_g$.
@@ -353,8 +355,8 @@ than a population probability (Section~\ref{sec:res-labels} reports its reliabil
 and density-outlier indicators, group size and spread, TF-IDF distance of the description to the group
 centroid, an indicator of generic descriptions (``various food products''), pack conversion and a
 ``price-per-pack'' mismatch feature (how close the log ratio is to the log pack size), unit type, price
-source, and log quantity (Table~\ref{tab:features}). None of the features identifies a product, which is
-what allows transfer across categories. The decision threshold $\tau$ is selected by cross-validation; the
+source, and log quantity (Table~\ref{tab:features}). None of the features identifies a product, so the
+model can be applied to other categories; how well it does so is examined in Section~\ref{sec:results}. The decision threshold $\tau$ is selected by cross-validation; the
 default model uses $\tau=0.675$.
 
 \begin{table}[t]
@@ -405,12 +407,20 @@ constraints: the score is non-decreasing in the absolute robust $z$-score and in
 constraint encodes domain knowledge that a larger deviation is never less suspicious, other things equal.
 Because the extreme indicator is nearly determined by $|z|$, its constraint is inactive in practice; four
 features (extreme, density outlier, per-pack price, expected-value source) receive no attribution in the
-explanations (Table~\ref{tab:features}) and are kept only for compatibility of the feature set.
+explanations (Table~\ref{tab:features}) and are kept only for compatibility of the feature set. In
+particular, DBSCAN influences v2 only through the density-outlier feature, which receives no attribution:
+it shapes the v1 screening flag $r_i$ but no output of v2, and we did not ablate it separately.
+
+\paragraph{Implementation details} The classifier uses learning rate 0.05, $L_2$ regularisation 1.0 and at
+least ten items per leaf. DBSCAN uses $\textit{min\_samples}=5$ and a PCA keeping 90\% of the variance;
+truncated SVD is applied only when the vocabulary of a group exceeds 60 terms; subgroups of five to nine
+items produced by the semantic split are left unanalysed. In nested cross-validation the decision for an
+item is the majority over the five repetitions.
 
 The ranking model is retrained offline when enough new verdicts have accumulated (in our deployment we plan a
 semi-annual to annual cycle), rather than continuously: verdicts given while the auditor sees the model's
-output carry the anchoring bias described in Section~\ref{sec:res-labels}, and periodic retraining allows
-the training set to be audited first.
+output may shift towards it, as the sighted annotation round suggests (Section~\ref{sec:res-labels}), and
+periodic retraining allows the training set to be audited first.
 
 \subsection{Explanations}
 
@@ -454,13 +464,13 @@ minutes.
 \node[box, right=of mongo] (norm) {Normalisation:\\units, prices};
 \node[store, right=of norm] (pg) {Relational store\\(PostgreSQL)};
 \node[box, below=10mm of pg] (det) {Detection worker:\\screening, calibrator,\\Shapley values};
-\node[box, left=of det] (rest) {REST API\\(FastAPI, roles,\\audit log)};
+\node[box, left=14mm of det] (rest) {REST API\\(FastAPI, roles,\\audit log)};
 \node[box, left=of rest] (ui) {Web interface:\\queue, item card,\\verdicts, reports};
 \node[box, left=of ui] (users) {Auditor, analyst,\\administrator};
 \node[box, below=7mm of det] (train) {Offline retraining\\of the calibrator};
 \draw[arr] (api) -- (sync); \draw[arr] (sync) -- (mongo); \draw[arr] (mongo) -- (norm); \draw[arr] (norm) -- (pg);
 \draw[arr] (pg) -- (det);
-\draw[arr] (det) -- node[above]{results} (rest);
+\draw[arr] (det) -- node[above, font=\scriptsize]{results} (rest);
 \draw[arr] (rest) -- (ui); \draw[arr] (users) -- (ui);
 \draw[arr] (ui.south) |- node[pos=0.75, above]{verdicts (four-eyes)} (train.west);
 \draw[arr, dashed] (train) -- (det);
@@ -473,7 +483,7 @@ calibrator replaces the default model after its training set has been reviewed.}
 An auditor defines a selection by CPV codes, period and units; before the run the system reports a
 homogeneity index of the selection (the spread of its categories), because detection is more precise in
 homogeneous selections. Detection runs in a separate worker: for the reference selection of 16{,}103 items
-the full pipeline, including Shapley values for the candidates, takes 38--45~s. Results are cached by
+the full pipeline takes about 38~s, or about 45~s including Shapley values for the candidates. Results are cached by
 selection and parameters, so a repeated request returns immediately.
 
 Each analysed item receives a risk score, the decision of the calibrator, the data-error indicator, the
@@ -509,11 +519,16 @@ $\sim$2$\times$ or below $\sim$0.4$\times$ the typical price), a price that clea
 (pack, gram, whole lot), or another evident data error. Items whose description does not allow a judgement
 are marked \emph{cannot judge} and excluded; excluding them assumes that they are not informative about
 the other labels. Both annotation rounds were performed by a large language model (Claude, Anthropic)
-under this written protocol, which served as the instruction; cards were processed in batches of 50--75
-items. The sighted round was produced in September 2026 (model version not recorded), the blind round on
-24~November~2026 with Claude Opus~5.5 in one session. A human annotator, not a professional auditor,
-re-labelled a subsample of 80 items (Section~\ref{sec:res-labels}). The protocol (in Ukrainian and English)
-and all cards and labels are published with the code. Table~\ref{tab:examples} shows typical cases of each label.
+under this written protocol, which served as the instruction. The sighted round was produced in
+September 2026 in two waves (125 and 275 cards, batches of 25--55; model version not recorded). The blind
+round was produced on 24~November~2026 by Claude Opus~5.5 in eight batches of 50 cards. It was not an
+isolated annotator: the same session had access to the project repository, knew the purpose of the study,
+had seen aggregate statistics of the sighted round (but not its per-item labels while annotating) and had
+built the blind cards itself; only the cards' content was restricted to the item record and neutral
+references. The human check of 80 items (Section~\ref{sec:res-labels}) was performed by the first author,
+who is not a professional auditor, on the same blind cards with the model's labels hidden. The protocol (in
+Ukrainian and English), all cards and labels are published with the code; prompts beyond the protocol were
+not used and no transcripts are published. Table~\ref{tab:examples} shows typical cases of each label.
 
 \begin{table*}[t]
 \caption{Examples from the blind annotation (descriptions translated from Ukrainian). Reference: median
@@ -541,10 +556,12 @@ Various food products & 42.31 UAH/unit & 153 & 431 UAH/unit (34) & cannot judge 
 
 \paragraph{Sighted and blind rounds} In the first (\emph{sighted}) round, annotation cards displayed the
 v1 decision and risk score together with the median and three comparable items of the pipeline's own
-group. Because this can anchor the annotator on the model's output, we re-annotated all 400 items
+group; the cards also carried the stratum and the price ratio and were ordered by stratum, the top stratum
+by decreasing risk. Because this can anchor the annotator on the model's output, we re-annotated all 400 items
 \emph{blind}: cards show only the item record and neutral reference prices (median, 10th--90th percentile
 and eight random examples of items with the same CPV code and unit, drawn directly from the database rather
-than from the pipeline's groups), in shuffled order. The rounds therefore differ in more than the display
+than from the pipeline's groups; for three items the code-level references were too few and the five- or
+four-digit category was used), in shuffled order. The rounds therefore differ in more than the display
 of the decision: the reference information, the card format and the annotation session differ as well. All
 results below use the blind labels unless stated otherwise.
 
@@ -561,7 +578,9 @@ CPV class $\times$ unit (an auditor without the system) and within the eight-dig
 Isolation Forest, LOF and ECOD applied (i) to log prices within the pipeline's groups and (ii) to the 19
 calibrator features without labels. Since unsupervised detectors have no natural threshold, we compare them
 at an equal alert budget of 4\% of analysed items (the share flagged by v1) and by average precision (AP),
-which does not depend on a threshold.
+which does not depend on a threshold. Detectors run within groups return the percentile rank of an
+item in its group, which makes scores comparable across groups but gives the top item of every group the
+same score; this handicaps their ranking across groups and hence their AP.
 
 \paragraph{Synthetic errors} Annotations measure what an annotator considers relevant; they cannot
 measure recall for error types that are rare in a 400-item sample. We therefore inject errors with known
@@ -573,7 +592,7 @@ by the quantity, for items with quantity $\ge5$). We repeat the injection with t
 the held-out CPV~03 and apply the calibrators without retraining. Genuine anomalies already present in the
 data are unlabelled and count as false positives, so precision is a lower bound and methods that flag fewer
 items are favoured in precision and F1; recall by error type is exact. The Isolation Forest baseline is
-given the alert budget of the first calibrator in the table.
+given the alert budget of the calibrator trained on sighted labels (6.5\% in CPV~15).
 
 %==============================================================================
 \section{Results}\label{sec:results}
@@ -596,13 +615,14 @@ unit errors (a price per kilogram entered for a gram, or the price of a 200~g pa
 and other data errors such as lot totals entered as unit prices. For an audit body both kinds matter ---
 the first can hide or simulate over-pricing, the second distorts published spending statistics.
 Agreement between
-the sighted and the blind annotation is high (Cohen's~\cite{cohen1960kappa} $\kappa=0.82$ on the 376 items
+the sighted and the blind annotation is high (Cohen's $\kappa=0.82$~\cite{cohen1960kappa} on the 376 items
 judged in both rounds; $\kappa=0.68$ including the \emph{cannot judge} class), but the disagreements are not
 symmetric. Among items flagged by v1, the sighted round confirmed 14 items that the blind round did not,
 against 4 in the opposite direction (3 of which the sighted round had marked \emph{cannot judge});
 confirmation rates fell from 52\% to 42\% in the top stratum and from 37\% to 32\% in the mid stratum.
-Among unflagged items the direction is reversed (4 confirmations in the sighted round, 1 in the blind), and
-the sighted round used \emph{cannot judge} twice as often (17 vs.\ 9). The shift among flagged items is
+Among unflagged items the sighted round also confirmed more items (4 vs.\ 1), which anchoring on an
+unflagged decision would not predict and which points to a generally more lenient sighted round; it also
+used \emph{cannot judge} twice as often (17 vs.\ 9). The shift among flagged items is
 consistent with anchoring on the displayed decision, but because the rounds also differ in reference
 information and session, it cannot be attributed to anchoring alone (Fig.~\ref{fig:agreement}, left).
 
@@ -663,16 +683,22 @@ Table~\ref{tab:labels} summarises the results; AP denotes the design-weighted av
 findings stand out. First, some form of grouping is essential, but a simple rule already captures much of
 it: the 3$\sigma$ rule on CPV class $\times$ unit reaches AP 0.51, the full screening stage 0.54; removing
 CPV grouping or the semantic split from the screening stage lowers its AP to 0.38 and 0.36, and pack-size
-normalisation raises F1 from 0.47 to 0.63. Second, generic unsupervised detectors do not beat simple robust
-rules on this problem: within the same groups, Isolation Forest, LOF and ECOD reach AP of 0.18--0.40; applied
+normalisation raises AP from 0.49 to 0.54. (The F1 values of the screening variants at their own
+thresholds, 0.47 to 0.64, mostly reflect those thresholds: at the common 4\% budget their F1 is 0.59 in
+all three cases.) Second, by AP generic unsupervised detectors do not beat simple robust rules on this
+problem: within the same groups, Isolation Forest, LOF and ECOD reach AP of 0.18--0.40; applied
 to the 19 calibrator features without labels they perform worst (AP 0.15--0.18), because those features are
-informative only in combination with the annotator's notion of relevance. Third, the learned ranking is the
+informative only in combination with the annotator's notion of relevance. By F1 at the 4\% budget,
+however, Isolation Forest within groups (0.52) does better than the 3$\sigma$ rule (0.46) and v1 at its own
+threshold (0.47). Third, the learned ranking is the
 largest single improvement: AP rises to 0.81, a gain of 0.31 over v1 (95\% interval $[0.17, 0.43]$), 0.28
 over the 3$\sigma$ rule ($[0.10, 0.44]$) and 0.24 over the screening stage ($[0.06, 0.40]$). The gain in F1
 at the selected threshold (0.47 $\to$ 0.71) is less certain, $[-0.01, 0.44]$, because the threshold is chosen
 on few positives in inner folds. The \emph{hybrid} variant, which flags every extreme regardless of the
 score, lowers AP to 0.61: the annotation does not consider every extreme price relevant, often because the
-good is not comparable with its group. On the sighted labels the conclusions are unchanged (AP 0.47 $\to$
+good is not comparable with its group. This gap rests largely on two unflagged items (weight 60 each)
+that are extremes but were labelled not anomalous; without them, AP is 0.82 for the ranking model and 0.74
+for the hybrid. On the sighted labels the conclusions are unchanged (AP 0.47 $\to$
 0.75, F1 0.47 $\to$ 0.75).
 
 The recall component of these estimates rests on few items in the large unflagged stratum: its single
@@ -696,12 +722,12 @@ prediction of the base rate. We therefore use the scores for ranking and thresho
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_pr}
-\caption{Design-weighted precision--recall curves on blind labels. The calibrated model keeps precision
-above 0.8 up to a recall of about 0.6, where the screening stage and the baselines are below 0.6.}
+\caption{Design-weighted precision--recall curves on blind labels. The ranking model keeps precision
+at about 0.75 or higher up to a recall of 0.6, where the screening stage and the baselines are below 0.5.}
 \label{fig:pr}
 \end{figure}
 
-Fig.~\ref{fig:pr} shows the same comparison over all thresholds. The calibrated model dominates the
+Fig.~\ref{fig:pr} shows the same comparison over all thresholds. The ranking model dominates the
 screening stage and the baselines in the high-precision region that matters for an audit queue: an auditor
 works through the top of the list, and every false alarm there costs review time. At high recall the
 curves converge, because the remaining confirmed items are those that no method ranks highly.
@@ -718,10 +744,15 @@ labels with human corrections.}
 
 \paragraph{Sensitivity to the annotator} Substituting the human labels on the 80 verified items changes
 the picture considerably: 63 instead of 54 items are confirmed, most of the additions are goods whose
-reference prices are not comparable, and all methods lose quality (v1: AP 0.36; screening stage of v2:
-AP 0.44). The ranking model remains the best ranker by AP (0.48), but its F1 (0.43) is no better than that
-of ECOD within the pipeline's groups (0.44), and its AP gain over v1 is no longer significant (95\% interval
-$[-0.04, 0.33]$). The benefit of the learned ranking is therefore tied to a consistent notion of relevance
+reference prices are not comparable, and the labels now mix two standards. Six of the twelve human-only
+confirmations fall into the unflagged stratum, of which the human checked 36 of 247 items; the seven
+confirmed unflagged items carry 65\% of the weighted positives. The screening-based methods lose quality
+(v1: AP 0.36; screening stage of v2: AP 0.44), whereas some detectors gain (ECOD within groups: AP 0.29
+$\to$ 0.30, F1 0.37 $\to$ 0.44; Isolation Forest on the calibrator features: AP 0.15 $\to$ 0.35). That the
+human confirmed six of 36 unflagged items the language model rejected suggests that, under human-like
+labels, the population recall of all methods would be much lower than the blind labels indicate. The ranking model remains the best ranker by AP (0.48), but its F1 (0.43) is no better than that
+of ECOD within the pipeline's groups (0.44), and its AP gains are no longer significant: 0.12 over v1
+(95\% interval $[-0.04, 0.33]$) and 0.09 over the 3$\sigma$ rule ($[-0.09, 0.30]$). The benefit of the learned ranking is therefore tied to a consistent notion of relevance
 in the labels it is trained and evaluated on, while the effect of the grouping ablations is similar across
 label variants (Fig.~\ref{fig:ablation}).
 
@@ -740,7 +771,7 @@ applied without retraining; CPV~03 is held out. The best F1 in each category is 
 \toprule
  & Method & F1 & AP & Flagged & R mod. & R strong & R unit & R lot \\
 \midrule
-\multirow{7}{*}{CPV 15}
+\multirow{9}{*}{CPV 15}
  & 3$\sigma$, CPV class & \textbf{0.58} & 0.63 & 1.7\% & 0.01 & 0.18 & 0.92 & 0.70 \\
  & Isolation Forest in groups & 0.51 & 0.42 & 6.1\% & 0.50 & 0.80 & 0.90 & 0.87 \\
  & v1 & 0.52 & 0.62 & 6.1\% & 0.48 & 0.80 & 0.95 & 0.92 \\
@@ -748,8 +779,10 @@ applied without retraining; CPV~03 is held out. The best F1 in each category is 
  & v2, calibrator on sighted labels & 0.45 & 0.46 & 6.5\% & 0.49 & 0.74 & 0.80 & 0.85 \\
  & v2, monotone calibrator on blind labels & 0.57 & 0.49 & 3.6\% & 0.33 & 0.68 & 0.74 & 0.80 \\
  & hybrid, same calibrator & \textbf{0.58} & 0.55 & 4.4\% & 0.38 & 0.74 & 0.89 & 0.89 \\
+ & v2, monotone calibrator on blind + human labels & 0.40 & 0.43 & 8.7\% & 0.54 & 0.81 & 0.86 & 0.90 \\
+ & hybrid, same calibrator & 0.40 & 0.53 & 9.1\% & 0.56 & 0.84 & 0.91 & 0.93 \\
 \midrule
-\multirow{7}{*}{CPV 03}
+\multirow{9}{*}{CPV 03}
  & 3$\sigma$, CPV class & 0.61 & 0.65 & 1.5\% & 0.01 & 0.05 & 0.97 & 0.83 \\
  & Isolation Forest in groups & 0.56 & 0.50 & 5.4\% & 0.53 & 0.77 & 0.93 & 0.91 \\
  & v1 & 0.61 & 0.67 & 4.7\% & 0.43 & 0.80 & 0.99 & 0.95 \\
@@ -757,6 +790,8 @@ applied without retraining; CPV~03 is held out. The best F1 in each category is 
  & v2, calibrator on sighted labels & 0.50 & 0.59 & 5.7\% & 0.47 & 0.76 & 0.83 & 0.89 \\
  & v2, monotone calibrator on blind labels & \textbf{0.66} & 0.63 & 3.1\% & 0.34 & 0.67 & 0.83 & 0.85 \\
  & hybrid, same calibrator & \textbf{0.66} & 0.65 & 3.7\% & 0.39 & 0.74 & 0.93 & 0.92 \\
+ & v2, monotone calibrator on blind + human labels & 0.47 & 0.57 & 6.5\% & 0.49 & 0.76 & 0.87 & 0.90 \\
+ & hybrid, same calibrator & 0.48 & 0.63 & 7.0\% & 0.53 & 0.81 & 0.94 & 0.94 \\
 \bottomrule
 \end{tabular}
 % --- end table synthetic ---
@@ -772,7 +807,7 @@ the unit-scale errors; forcing extremes to be flagged (hybrid) restores it.}
 \end{figure*}
 
 Table~\ref{tab:synthetic} and Fig.~\ref{fig:synthetic} report the injected-error benchmark. Unit-scale errors and lot totals are
-found by all pipeline variants and by simple rules; moderate deviations ($\times2$--3) are found by none
+found by all pipeline variants and by simple rules; moderate deviations ($\times2$, $\times3$, $\times0.4$, $\times0.5$) are found by none
 reliably. The calibrator trained on the sighted labels lowers F1 below the screening stage in both
 categories. The monotone calibrator trained on blind labels is the most conservative (3--4\% of items
 flagged); in the held-out CPV~03 it has the highest F1 (0.66 vs.\ 0.61 for screening), but this advantage
@@ -782,7 +817,7 @@ trained on, but ranks injected errors worse than screening; it also misses a qua
 in CPV~15. The hybrid recovers them (recall 0.74 $\to$ 0.89 in CPV~15, 0.83 $\to$ 0.93 in CPV~03) at
 unchanged F1. On injected errors the hybrid is therefore preferable, whereas on annotated relevance
 (Table~\ref{tab:labels}) the pure calibrator ranks better --- the two evaluations measure different jobs, a
-point we return to in the Discussion. The AP of all calibrated variants is below that of the screening
+point we return to in the Discussion. The AP of all ranking-model variants is below that of the screening
 stage on injected errors, because the calibrator ranks injected moderate deviations lower than the
 annotator-relevant cases it was trained on.
 
@@ -797,30 +832,31 @@ flagged items, in risk points (features with less than 0.1 point omitted).}
 \end{figure}
 
 We explained 120 randomly chosen flagged items of the reference selection (292 flagged by the default
-monotone calibrator) against 100 background items (unflagged items with a screening risk below 30) and
+monotone calibrator) against 100 background items (unflagged items with a risk $100\,\pi$ below 30) and
 compared the system's estimator (24 permutations) with a reference estimate from 2{,}000 permutations
 (Table~\ref{tab:explain}). The error is averaged over all 19 features, several of which have near-zero
 attributions, and the additivity gap is reported for the reference estimate.
 
-\begin{table*}[t]
+\begin{table}[t]
 \centering
-\caption{Quality of Monte-Carlo Shapley explanations (120 flagged items, 10 seeds).}
+\caption{Quality of Monte Carlo Shapley explanations (120 flagged items, 10 seeds; risk in points of
+the 0--100 scale).}
 \label{tab:explain}
-\small
-\begin{tabular}{lr}
+\footnotesize
+\begin{tabular}{@{}p{0.66\columnwidth}r@{}}
 \toprule
-Mean absolute error vs.\ 2{,}000-permutation reference, risk points & 0.98 \\
+Mean absolute error vs.\ 2{,}000-permutation reference & 0.98 \\
 Top-3 features shared with the reference & 85.0\% \\
 Spearman correlation of $|\phi|$ with the reference & 0.95 \\
-Top-3 features shared between runs with different seeds & 79.5\% \\
-Median additivity gap $|\sum_j\phi_j-(f(x)-\mathbb{E}_b f(b))|$, risk points & 0.02 \\
+Top-3 features shared between seeds & 79.5\% \\
+Median additivity gap of the reference, $|\sum_j\phi_j-(f(x)-\mathbb{E}_b f(b))|$ & 0.02 \\
 Time per item, ms & 32 \\
 \midrule
-Risk drop when replacing the top-1 / top-2 / top-3 features by background values & 87.9 / 89.7 / 91.1 \\
-Risk drop when replacing 1 / 2 / 3 random features & 9.7 / 13.0 / 17.1 \\
+Risk drop, top-1 / 2 / 3 features replaced by background & 87.9 / 89.7 / 91.1 \\
+Risk drop, 1 / 2 / 3 random features replaced & 9.7 / 13.0 / 17.1 \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 The error of the 24-permutation estimate is about one risk point on a 0--100 scale and the attribution
 magnitudes correlate strongly with the reference ($\rho=0.95$). The three features shown first agree with
@@ -844,18 +880,19 @@ conflates. Gross data errors --- unit-scale confusions and lot totals entered as
 by the screening stage alone, without labels, in both categories (recall 0.90--0.99). Deciding which of
 the many deviations deserve an auditor's time is where the learned ranking adds value (AP 0.49 $\to$
 0.81 on annotated relevance), and that value is defined by the annotation it learns from. Merging the two
-into one decision costs one of them: the hybrid restores recall of unit-scale errors but lowers AP on
-annotated relevance from 0.81 to 0.61. The system therefore presents two signals rather than a single
+into one decision trades one against the other: the hybrid restores recall of unit-scale errors but
+lowers AP on annotated relevance from 0.81 to 0.61 (0.82 vs.\ 0.74 without the two items discussed in
+Section~\ref{sec:results}). The system therefore presents two signals rather than a single
 score: a learned \emph{risk} and a \emph{likely data error} indicator, raised for every extreme of the
 screening stage regardless of the calibrator. The review queue contains the union of both, can be filtered
 by either, and the item card explains a likely data error with what to check (unit of measure, pack size,
-lot total entered as a unit price). In a selection of three CPV codes (butter, milk, oils; 2{,}318 analysed
+lot total entered as a unit price). In a selection of three CPV classes (1553 butter, 1551 milk, 1542 refined oils; 2{,}318 analysed
 items), 49 items have high risk and 42 are likely data errors; 15 of the latter would not have reached the
 queue through the calibrator alone.
 
 \paragraph{Labels are part of the model} Three annotation variants of the same 400 items --- sighted,
 blind, and blind with human corrections --- lead to different calibrators. The model trained on sighted
-labels inherited the earlier system's view and performed worst on synthetic errors; the human corrections,
+labels flags more items and ranks injected errors no better than the blind-label model; the human corrections,
 made by a non-expert who followed reference prices literally, made the calibrator flag more than twice as
 many items (8.7\% vs.\ 3.6\% of CPV~15 items in the synthetic benchmark), partly because cross-validation
 selected a lower threshold for it (0.30 vs.\ 0.675). For an audit organisation this means that the annotation protocol, the information shown to
@@ -868,9 +905,9 @@ outperform robust rules within well-formed groups. Grouping is necessary but sim
 3$\sigma$ rule comes within 0.04 AP of the full screening stage. The large gain comes from learning which
 deviations matter, which in turn depends on comparable groups to compute its features.
 
-\paragraph{Operating point} The ranking model flags 2--4\% of analysed items, the screening stage 4--6\%.
-For a selection of the size of our reference (about 15 thousand analysed items) this is a queue of
-300--600 items; the data-error indicator adds the extremes that the calibrator ranks low (15 of 64 queued
+\paragraph{Operating point} On the reference selection the ranking model flags 1.9\% of the analysed items
+(292 of 15{,}034), the v2 screening stage 3.6\% and v1 4.1\%; a queue of about 300 items for 15 thousand
+analysed items; the data-error indicator adds the extremes that the calibrator ranks low (15 of 64 queued
 items in the selection discussed above). Because the ranking quality of the
 learned model is high at the top of the list (Fig.~\ref{fig:pr}), an audit unit with limited capacity
 can work through the queue from the top and stop when its budget is spent; the threshold matters less than
@@ -919,9 +956,8 @@ reported separately as likely data errors, with per-item Shapley explanations. O
 the learned ranking clearly improves design-weighted average precision over statistical rules, generic
 unsupervised detectors and the screening stage on language-model labels; explanations computed with 24
 permutations are accurate and stable. Our evaluation also shows that the labels are the weakest link: a
-sighted annotation round shifted towards the earlier system's decisions, a model trained on it performed
-worst on injected errors, and with the corrections of a human annotator the gain of the learned ranking is
-no longer significant. Future work should replace language-model annotation with verdicts of
+sighted annotation round confirmed the earlier system's flags more often than a blind round, and with the
+corrections of a human annotator the gain of the learned ranking shrinks and is no longer significant. Future work should replace language-model annotation with verdicts of
 professional auditors collected blind, extend the evaluation to more categories and periods, and study how
 auditors use the explanations in their decisions.
 

@@ -1,6 +1,8 @@
 """Experiment 4: robustness of the annotated-data results, from saved per-item scores (no pipeline run).
 
-    python exp_robustness.py      (reads results/scores_blind.csv, writes results/robustness.csv)
+    python exp_robustness.py [blind|adjusted]
+        reads results/scores_<kind>.csv; writes results/robustness.csv (blind) or robustness_adjusted.csv,
+        and, for blind labels, results/reliability.csv
 
 1. Stratified bootstrap of the AP gain of the calibrated model over every other method, including the
    best baseline (3-sigma rule). Predictions are fixed (nested-CV scores); the intervals therefore do not
@@ -10,6 +12,7 @@
 3. Reliability of the calibrated scores: weighted observed rate per score bin and the weighted Brier score.
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -24,8 +27,11 @@ def ap(t: pd.DataFrame, col: str) -> float:
     return average_precision_score(t["y"], t[col].fillna(-1e9), sample_weight=t["weight"])
 
 
+KIND = sys.argv[1] if len(sys.argv) > 1 else "blind"
+
+
 def main() -> None:
-    t = pd.read_csv(RES / "scores_blind.csv")
+    t = pd.read_csv(RES / f"scores_{KIND}.csv")
     rows = []
     rng = np.random.default_rng(0)
     groups = [np.flatnonzero(t["stratum"].to_numpy() == s) for s in t["stratum"].unique()]
@@ -53,7 +59,15 @@ def main() -> None:
     share = (normal_pos["weight"] * normal_pos["y"]).sum() / (t["weight"] * t["y"]).sum()
     print(f"normal-stratum positives: {list(normal_pos['item_id'])}, share of weighted positives {share:.3f}")
     print(out.round(3).to_string())
-    out.round(4).to_csv(RES / "robustness.csv")
+    out.round(4).to_csv(RES / ("robustness.csv" if KIND == "blind" else f"robustness_{KIND}.csv"))
+
+    # hybrid vs calibrator: dependence on extremes of the unflagged stratum that the annotation rejects
+    neg_ext = t[(t["stratum"] == "normal") & (t["y"] == 0) & (t["hybrid"] >= 1)]
+    rest = t.drop(neg_ext.index)
+    print(f"normal-stratum extremes labelled negative: {list(neg_ext['item_id'])}; "
+          f"AP without them: calibrator {ap(rest, 'calibrator'):.3f}, hybrid {ap(rest, 'hybrid'):.3f}")
+    if KIND != "blind":
+        return
 
     # reliability of the calibrated scores (nested-CV out-of-fold)
     p, y, w = t["calibrator"].to_numpy(), t["y"].to_numpy(), t["weight"].to_numpy()
