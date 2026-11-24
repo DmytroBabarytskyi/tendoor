@@ -98,6 +98,18 @@ def main() -> None:
     rows.append({"метод": "гібрид: екстремуми завжди + калібратор (вкладена CV)", "тип": "конвеєр",
                  **scores(y, h_flag, h_score, w)})
 
+    # оцінки кожної розміченої позиції — для кривих precision–recall у статті
+    per_item = pd.DataFrame({"item_id": ids.to_numpy(), "y": y, "stratum": lab["stratum"].to_numpy(), "weight": w})
+    for col, sc in (
+        ("sigma3", sigma3_score(df)),
+        ("v1", runs["v1 (перший етап, як у v1)"]["risk"]),
+        ("screening_v2", base["risk"]),
+        ("iforest_groups", per_group(lp, base.loc[analysed, "group"], "iforest").reindex(base.index)),
+    ):
+        per_item[col] = sc.reindex(ids).to_numpy(float)
+    per_item["calibrator"], per_item["hybrid"] = prob, h_score
+    per_item.to_csv(OUT / f"scores_{KIND}.csv", index=False)
+
     table = pd.DataFrame(rows).set_index("метод")
     pd.set_option("display.width", 200)
     print(table.round(3).to_string())

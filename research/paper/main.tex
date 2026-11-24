@@ -16,8 +16,10 @@
 \usepackage{textcomp}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage{url}
+\usepackage{xurl}  % переноси довгих URL у будь-якому місці
 \usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
 \usepackage{microtype}
@@ -235,8 +237,24 @@ dissimilar goods.
 \paragraph{Semantic split.} A CPV code can still mix goods with very different prices (``dairy products''
 covers yoghurt and hard cheese). Groups with at least 30 items are split by description: lemmatised
 descriptions are vectorised with TF-IDF~\cite{salton1988weighting}, reduced with truncated SVD and
-clustered with $k$-means, choosing $k\le 8$ by the silhouette coefficient~\cite{rousseeuw1987silhouettes};
-the split is kept only if the silhouette exceeds 0.15 and every subgroup has at least five items.
+clustered with $k$-means~\cite{macqueen1967kmeans}, choosing $k\le 8$ by the silhouette
+coefficient~\cite{rousseeuw1987silhouettes}; the split is kept only if the silhouette exceeds 0.15 and every
+subgroup has at least five items. Procurement descriptions are short (median three words), domain-specific
+and often contain only the product name, its grade and pack size; lemmatisation followed by TF-IDF separates
+such texts well and is fast and transparent. Contextual sentence embeddings~\cite{reimers2019sbert} are a
+natural alternative for longer descriptions, at a higher cost and with less interpretable groups, which
+matters when the auditor must see why two items were compared.
+
+\paragraph{Why these design choices.} Three properties of item-level procurement prices drive the design.
+First, prices are heavy-tailed and multiplicative --- a data error easily changes a price by three orders of
+magnitude --- so all statistics are computed on log prices with robust estimators (median, MAD), and
+extremes are removed before the spread is estimated so that a single lot total does not inflate it.
+Second, groups are small: the reference selection yields 320 analysed groups with a median of 24 items, and
+76\% of them have fewer than 50 items,
+which rules out detectors that need many points per group and motivates bottom-up aggregation by the CPV
+hierarchy. Third, the same price can be normal for one purchase and suspicious for another only through
+the quantity and the season (for example, fresh vegetables in winter), which is why density-based screening
+uses quantity and cyclically encoded month in addition to price.
 
 \subsection{Unsupervised screening}
 
@@ -251,7 +269,12 @@ of standardised $[2\ell, \log q, \sin m, \cos m]$ (price weighted twice, quantit
 with $\varepsilon$ chosen at the knee of the sorted $k$-distance curve~\cite{satopaa2011kneedle}.
 \end{enumerate}
 An item is flagged if it is an extreme, or $|z_i|\ge4$, or it is a density outlier with $|z_i|\ge3$: a
-density outlier must be a \emph{price} outlier, not merely unusual in quantity or date.
+density outlier must be a \emph{price} outlier, not merely unusual in quantity or date. The thresholds
+(the extreme factor, $|z|\ge4$ and $\ge3$, the MAD floor, the price weight) were chosen by a grid search on
+injected anomalies in the training category and are exposed to analysts as parameters with bounds. With the
+knee-based $\varepsilon$, DBSCAN has no free parameter that an analyst would have to tune per group;
+its hierarchical variant HDBSCAN~\cite{campello2013hdbscan} removes $\varepsilon$ altogether but requires a
+minimum cluster size, which is hard to set for groups ranging from ten to several hundred items.
 
 \subsection{Calibration on review verdicts}
 
@@ -262,8 +285,80 @@ auditor confirms the item: the signed and absolute robust $z$, the log ratio to 
 and density-outlier indicators, group size and spread, TF-IDF distance of the description to the group
 centroid, an indicator of generic descriptions (``various food products''), pack conversion and a
 ``price-per-pack'' mismatch feature (how close the log ratio is to the log pack size), unit type, price
-source, and log quantity. None of the features identifies a product, which is what allows transfer
-across categories. The decision threshold is selected by cross-validation.
+source, and log quantity (Table~\ref{tab:features}). None of the features identifies a product, which is
+what allows transfer across categories. The decision threshold is selected by cross-validation.
+
+\begin{table}[t]
+\caption{Calibrator features and their global importance (mean $|\phi|$ over 120 flagged items, risk
+points; Section~\ref{sec:res-explain}). $\uparrow$: monotone non-decreasing constraint.}
+\label{tab:features}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.27\columnwidth}p{0.55\columnwidth}r@{}}
+\toprule
+Feature & Meaning & $|\phi|$ \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Deviation (screening stage)}} \\
+\texttt{abs\_z} $\uparrow$ & absolute robust $z$-score of log price & 69.3 \\
+\texttt{z} & signed robust $z$ (more or less expensive) & 3.9 \\
+\texttt{log\_ratio} & log ratio of price to group median & 7.3 \\
+\texttt{is\_extreme} $\uparrow$ & outside $[Q_1-3\,\mathrm{IQR},Q_3+3\,\mathrm{IQR}]$ & 0.0 \\
+\texttt{is\_noise} & DBSCAN noise point & 0.0 \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Group context}} \\
+\texttt{log\_group\_size} & log number of comparable items & 2.6 \\
+\texttt{group\_spread} & robust spread (MAD) of log prices & 2.6 \\
+\texttt{text\_dist} & TF-IDF cosine distance of description to group centroid & 9.0 \\
+\texttt{desc\_generic} & generic description (``various products'') & 0.4 \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Units and packs}} \\
+\texttt{pack\_converted} & price converted from pack size & 0.4 \\
+\texttt{has\_pack} & pack size stated in description & 0.3 \\
+\texttt{pack\_mismatch} & $|\log$ ratio $-\log$ pack size$|$ (per-pack price) & 0.0 \\
+\texttt{unit\_piece} & piece-type unit (piece, pack, bottle, \ldots) & 2.1 \\
+\texttt{unit\_weight} & base unit kilogram & 0.9 \\
+\texttt{unit\_volume} & base unit litre & 0.1 \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Price source and volume}} \\
+\texttt{src\_unit\_value} & price from item-level unit value & 1.0 \\
+\texttt{src\_contract} & price from contract & 1.6 \\
+\texttt{src\_expected} & price from expected value & 0.0 \\
+\texttt{log\_qty} & log quantity in base unit & 2.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Algorithm~\ref{alg:pipeline} summarises the full procedure for one selection.
+
+\begin{algorithm}[t]
+\caption{Two-stage screening of unit prices}
+\label{alg:pipeline}
+\footnotesize
+\begin{algorithmic}[1]
+\Require items $I$ with description, CPV code, unit, quantity, price; calibrator $f$ with threshold $\tau$
+\ForAll{$i\in I$ with a piece-type unit and a pack size $s_i$ parsed from the description}
+  \State $p_i\gets p_i/s_i$; \quad $q_i\gets q_i\cdot s_i$; \quad unit $\gets$ kg or l
+\EndFor
+\State $G\gets$ groups by (unit, CPV code); merge groups with $|g|<10$ up to category, then class
+\ForAll{$g\in G$ with $|g|\ge30$}
+  \State split $g$ by $k$-means on TF-IDF of lemmatised descriptions, $k\le8$
+  \State keep the split if silhouette $>0.15$ and all subgroups have $\ge5$ items
+\EndFor
+\ForAll{$g\in G$, $|g|\ge10$}
+  \State $E_g\gets\{i:\ell_i\notin[Q_1-3\,\mathrm{IQR},\,Q_3+3\,\mathrm{IQR}]\}$ \Comment{extremes}
+  \State $z_i\gets(\ell_i-\mathrm{med})/\max(1.4826\,\mathrm{MAD},0.15)$ on $g\setminus E_g$
+  \State $N_g\gets$ DBSCAN noise in PCA of $[2\ell,\log q,\sin m,\cos m]$, $\varepsilon$ at the knee
+  \State $r_i\gets[i\in E_g]\lor|z_i|\ge4\lor([i\in N_g]\land|z_i|\ge3)$ \Comment{screening flag}
+\EndFor
+\ForAll{analysed $i$}
+  \State $\pi_i\gets f(\mathbf{x}_i)$; \quad risk$_i\gets100\,\pi_i$; \quad flag$_i\gets\pi_i\ge\tau$
+  \State data\_error$_i\gets[i\in E_g]$ \Comment{second signal}
+  \If{$\pi_i\ge\tau/2$} \State $\boldsymbol\phi_i\gets$ Monte-Carlo Shapley values, 24 permutations \EndIf
+\EndFor
+\State \Return risk, flag, data\_error, $\boldsymbol\phi$ for every item
+\end{algorithmic}
+\end{algorithm}
 
 With few positive labels, an unconstrained tree ensemble can learn non-monotone relations from
 idiosyncrasies of the sample --- in our first blind-trained model, a twelvefold over-priced item with a
@@ -283,12 +378,81 @@ the training set to be audited first.
 For an item $x$ the contribution of feature $j$ is its Shapley value with respect to background items
 $z$ drawn from unflagged items of the same selection,
 \begin{equation}
-\phi_j(x)=\sum_{S\subseteq F\setminus\{j\}}\frac{|S|!\,(d-|S|-1)!}{d!}\left[f(x_{S\cup\{j\}},z_{\bar S\setminus\{j\}})-f(x_S,z_{\bar S})\right],
+\begin{split}
+\phi_j(x)=\sum_{S\subseteq F\setminus\{j\}}\frac{|S|!\,(d-|S|-1)!}{d!}
+  \bigl[\,&f(x_{S\cup\{j\}},z_{\bar S\setminus\{j\}})\\
+  &-f(x_S,z_{\bar S})\bigr],
+\end{split}
 \end{equation}
+where $F$ is the set of $d=19$ features and $\bar S$ the complement of $S$; $f(x_S,z_{\bar S})$ denotes the
+calibrator's prediction for a point that takes features in $S$ from $x$ and the remaining ones from $z$,
+averaged over background items. The values are additive: they sum to the difference between the item's
+risk and the mean risk of the background. Exact computation requires $2^{19}$ coalitions per item; they are
 estimated by Monte Carlo over random feature permutations~\cite{strumbelj2014explaining} (24
 permutations per item in the system). Contributions are reported in risk points and labelled in
 the auditor's language (e.g.\ ``strength of deviation from the group median'', ``price resembles a
 per-pack price'').
+
+%==============================================================================
+\section{System implementation}\label{sec:system}
+
+The method runs inside an information system for audit staff (Fig.~\ref{fig:architecture}). A
+synchronisation worker follows the Prozorro change feed and stores raw tender documents in a document
+store (MongoDB); a normalisation step maps them into a relational schema (PostgreSQL) of tenders, lots,
+items, contracts, procuring entities and suppliers, derives unit prices and converts units. Database
+triggers keep the base-unit price consistent with the item record. An interrupted synchronisation resumes
+from the last processed change; one day of the feed (about 25 thousand changed documents) takes about ten
+minutes.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=5mm and 7mm, every node/.style={font=\footnotesize},
+  box/.style={draw, rounded corners, align=center, minimum height=9mm, text width=25mm, fill=gray!6},
+  store/.style={draw, align=center, minimum height=9mm, text width=22mm, fill=blue!5},
+  arr/.style={-{Stealth[length=2mm]}}]
+\node[box] (api) {Prozorro\\OpenProcurement API};
+\node[box, right=of api] (sync) {Synchronisation\\worker (change feed)};
+\node[store, right=of sync] (mongo) {Raw documents\\(MongoDB)};
+\node[box, right=of mongo] (norm) {Normalisation:\\units, prices};
+\node[store, right=of norm] (pg) {Relational store\\(PostgreSQL)};
+\node[box, below=10mm of pg] (det) {Detection worker:\\screening, calibrator,\\Shapley values};
+\node[box, left=of det] (rest) {REST API\\(FastAPI, roles,\\audit log)};
+\node[box, left=of rest] (ui) {Web interface:\\queue, item card,\\verdicts, reports};
+\node[box, left=of ui] (users) {Auditor, analyst,\\administrator};
+\node[box, below=7mm of det] (train) {Offline retraining\\of the calibrator};
+\draw[arr] (api) -- (sync); \draw[arr] (sync) -- (mongo); \draw[arr] (mongo) -- (norm); \draw[arr] (norm) -- (pg);
+\draw[arr] (pg) -- (det);
+\draw[arr] (det) -- node[above]{results} (rest);
+\draw[arr] (rest) -- (ui); \draw[arr] (users) -- (ui);
+\draw[arr] (ui.south) |- node[pos=0.75, above]{verdicts (four-eyes)} (train.west);
+\draw[arr, dashed] (train) -- (det);
+\end{tikzpicture}
+\caption{Architecture of the information system. Solid arrows: data flow; dashed: the retrained
+calibrator replaces the default model after its training set has been reviewed.}
+\label{fig:architecture}
+\end{figure*}
+
+An auditor defines a selection by CPV codes, period and units; before the run the system reports a
+homogeneity index of the selection (the spread of its categories), because detection is more precise in
+homogeneous selections. Detection runs in a separate worker: for the reference selection of 16{,}103 items
+the full pipeline, including Shapley values for the candidates, takes 38--45~s. Results are cached by
+selection and parameters, so a repeated request returns immediately.
+
+Each analysed item receives a risk score, the decision of the calibrator, the data-error indicator, the
+group it was compared with and, for candidates, the feature contributions. The review queue lists the
+union of high-risk items and likely data errors and can be filtered by either signal. A reviewer opens
+an item card with the plain-language explanation, the contributions and comparable purchases, and
+records a verdict (confirmed, not anomalous, needs review) with a reason; a verdict becomes final only
+after approval by a second auditor (four-eyes principle). Verdicts, approvals and reports are kept with
+their history, and changes of users and parameters are recorded in an audit log by database triggers.
+Three roles separate duties: analysts synchronise data and may override detection parameters,
+auditors review items, and administrators manage users and default parameters.
+
+Under a load test with 100 concurrent simulated users following auditor and analyst scenarios, the
+system served about 48 requests per second without errors with a 95th-percentile latency of
+1.8--1.9~s; indexing the queue, the item card and the item lists reduced the corresponding query times by
+factors of 16--36. The code base is covered by 154 automated tests and is published under the AGPL-3.0
+licence.
 
 %==============================================================================
 \section{Evaluation design}\label{sec:eval}
@@ -306,7 +470,31 @@ $\sim$2$\times$ or below $\sim$0.4$\times$ the typical price), a price that clea
 (pack, gram, whole lot), or another evident data error. Items whose description does not allow a judgement
 are marked \emph{cannot judge} and excluded. Annotation was performed by a large language model (Claude,
 Anthropic) under this written protocol; a human annotator re-labelled a subsample of 80 items
-(Section~\ref{sec:res-labels}).
+(Section~\ref{sec:res-labels}). Table~\ref{tab:examples} shows typical cases of each label.
+
+\begin{table*}[t]
+\caption{Examples from the blind annotation (descriptions translated from Ukrainian). Reference: median
+price of items with the same eight-digit CPV code and unit ($n$ items).}
+\label{tab:examples}
+\centering
+\footnotesize
+\begin{tabular}{@{}lrrrll@{}}
+\toprule
+Item description & Price in record & Quantity & Reference (n) & Label & Reason \\
+\midrule
+Butter ``Selianske'' & 470 UAH per \emph{gram} & 0.8 & 400 UAH/kg (694) & confirmed & unit error: price per kg, unit gram \\
+Butter & 83.6 UAH/kg & 320 & 400 UAH/kg (694) & confirmed & unit error: price of a 200 g pack per kg \\
+Pangasius fillet, frozen & 231{,}800 UAH/kg & 1 & 190 UAH/kg (914) & confirmed & data error: lot total as unit price \\
+Sunflower oil, refined & 0.11 UAH/kg & 4{,}600 & 93 UAH/kg (354) & confirmed & data error: implausible unit price \\
+Sugar & 140 UAH/kg & 50 & 35 UAH/kg (619) & confirmed & over-priced, $4\times$ a homogeneous good \\
+Tomato paste 25\%, 480 g & 141.75 UAH/jar & 16 & 59 UAH/jar (30) & confirmed & over-priced, $2.4\times$ \\
+Pork & 35 UAH/kg & 286 & 210 UAH/kg (662) & confirmed & under-priced, $0.17\times$ \\
+Whole-grain pasta & 115 UAH/kg & 120 & 45 UAH/kg (609) & not anomalous & dearer variety explains the price \\
+Oil (4600 g) & 385 UAH/piece & 12 & 95 UAH/piece (154) & not anomalous & 5-litre bottle; references are 1-litre \\
+Various food products & 42.31 UAH/unit & 153 & 431 UAH/unit (34) & cannot judge & content of the ``unit'' unknown \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 \paragraph{Anchoring and blind re-annotation.} In the first annotation round, annotation cards displayed
 the v1 decision and risk score. Because this can anchor the annotator on the model's output, we
@@ -343,13 +531,38 @@ exact.
 
 \subsection{Annotation agreement and anchoring}\label{sec:res-labels}
 
-Of the 400 items, the blind annotation confirmed 54 and marked 9 as \emph{cannot judge}. Agreement between
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_labels}
+\caption{Blind labels by stratum of the stratified sample. Data errors (wrong unit, lot totals,
+implausible values) are concentrated among the highest-risk items of v1; genuine over- and under-pricing
+dominates among the other flagged items; almost no confirmed cases occur among unflagged items.}
+\label{fig:labels}
+\end{figure}
+
+Of the 400 items, the blind annotation confirmed 54 and marked 9 as \emph{cannot judge}
+(Fig.~\ref{fig:labels}). Over half of the confirmed items are data errors rather than price deviations:
+unit errors (a price per kilogram entered for a gram, or the price of a 200~g pack entered per kilogram)
+and other data errors such as lot totals entered as unit prices. For an audit body both kinds matter ---
+the first can hide or simulate over-pricing, the second distorts published spending statistics.
+Agreement between
 the sighted and the blind annotation is high (Cohen's~\cite{cohen1960kappa} $\kappa=0.82$ on the 376 items
 judged in both rounds; $\kappa=0.68$ including the \emph{cannot judge} class), but the disagreements are not
 symmetric. Among items flagged by v1, the sighted annotation confirmed 14 that the blind annotation did not,
 against 4 in the opposite direction; confirmation rates fell from 52\% to 42\% in the top stratum and from
 37\% to 32\% in the mid stratum. Seeing the model's decision thus inflated agreement with the model ---
-an anchoring effect that would bias any evaluation built on such labels.
+an anchoring effect that would bias any evaluation built on such labels (Fig.~\ref{fig:agreement}, left).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{fig_agreement}
+\caption{Agreement between annotation rounds. Left: the sighted round (annotator saw the v1 decision)
+against the blind round; the 17 items confirmed only by the sighted round are mostly items flagged by v1.
+Right: the human check against the blind language-model annotation; the human confirmed 12 items the model
+did not, mostly goods whose reference prices were not comparable.}
+\label{fig:agreement}
+\end{figure*}
+
 A human annotator (not a professional auditor) labelled a subsample of 80 blind cards (30 confirmed and 50
 not confirmed by the blind annotation, order shuffled, annotation hidden). On the 78 items both judged,
 raw agreement was 82\% and $\kappa=0.64$. Disagreements were again asymmetric: the human flagged 12 items
@@ -408,12 +621,36 @@ Forcing every extreme to be flagged (hybrid) lowers AP to 0.61: annotators do no
 price relevant, often because the good is not comparable with its group. On the sighted labels the
 conclusions are unchanged (AP 0.47 $\to$ 0.75, F1 0.47 $\to$ 0.75).
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_pr}
+\caption{Design-weighted precision--recall curves on blind labels. The calibrated model keeps precision
+above 0.8 up to a recall of about 0.6, where the screening stage and the baselines are below 0.6.}
+\label{fig:pr}
+\end{figure}
+
+Figure~\ref{fig:pr} shows the same comparison over all thresholds. The calibrated model dominates the
+screening stage and the baselines in the high-precision region that matters for an audit queue: an auditor
+works through the top of the list, and every false alarm there costs review time. At high recall the
+curves converge, because the remaining confirmed items are those that no method ranks highly.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.85\textwidth]{fig_ablation}
+\caption{Average precision of the screening stage, its ablations and the calibrated model under the three
+label variants. The ordering of the screening variants is the same in all three: removing CPV grouping or
+the semantic split hurts most. The gain from calibration is large on the language-model labels and small
+on the labels with human corrections.}
+\label{fig:ablation}
+\end{figure*}
+
 \paragraph{Sensitivity to the annotator.} Substituting the human labels on the 80 verified items changes
 the picture considerably: 63 instead of 54 items are confirmed, most of the additions are goods whose
 reference prices are not comparable, and all methods lose quality (v1: AP 0.36; screening stage of v2:
 AP 0.44). The calibrated model remains the best ranker (AP 0.48, F1 0.43), but its gain over v1 is no
 longer significant (AP gain 95\% CI $[-0.04, 0.33]$). The benefit of calibration is therefore tied to a
-consistent notion of relevance in the labels it is trained and evaluated on.
+consistent notion of relevance in the labels it is trained and evaluated on, while the contribution of
+the comparability layer is stable across label variants (Fig.~\ref{fig:ablation}).
 
 \subsection{Synthetic errors and transfer to another category}
 
@@ -427,25 +664,25 @@ applied without retraining; CPV~03 is held out.}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{llccccccc}
 \toprule
- & Method & F1 & AP & Flagged & R mod. & R strong & R unit & R lot \
+ & Method & F1 & AP & Flagged & R mod. & R strong & R unit & R lot \\
 \midrule
 \multirow{7}{*}{CPV 15}
- & 3$\sigma$, CPV class & 0.58 & 0.63 & 1.7\% & 0.01 & 0.18 & 0.92 & 0.70 \
- & Isolation Forest in groups & 0.51 & 0.42 & 6.1\% & 0.50 & 0.80 & 0.90 & 0.87 \
- & v1 & 0.52 & 0.62 & 6.1\% & 0.48 & 0.80 & 0.95 & 0.92 \
- & v2 screening & 0.55 & 0.62 & 5.4\% & 0.49 & 0.79 & 0.90 & 0.91 \
- & v2, calibrator on sighted labels & 0.45 & 0.46 & 6.5\% & 0.49 & 0.74 & 0.80 & 0.85 \
- & v2, monotone calibrator on blind labels & 0.57 & 0.49 & 3.6\% & 0.33 & 0.68 & 0.74 & 0.80 \
- & hybrid, same calibrator & \textbf{0.58} & 0.55 & 4.4\% & 0.38 & 0.74 & 0.89 & 0.89 \
+ & 3$\sigma$, CPV class & 0.58 & 0.63 & 1.7\% & 0.01 & 0.18 & 0.92 & 0.70 \\
+ & Isolation Forest in groups & 0.51 & 0.42 & 6.1\% & 0.50 & 0.80 & 0.90 & 0.87 \\
+ & v1 & 0.52 & 0.62 & 6.1\% & 0.48 & 0.80 & 0.95 & 0.92 \\
+ & v2 screening & 0.55 & 0.62 & 5.4\% & 0.49 & 0.79 & 0.90 & 0.91 \\
+ & v2, calibrator on sighted labels & 0.45 & 0.46 & 6.5\% & 0.49 & 0.74 & 0.80 & 0.85 \\
+ & v2, monotone calibrator on blind labels & 0.57 & 0.49 & 3.6\% & 0.33 & 0.68 & 0.74 & 0.80 \\
+ & hybrid, same calibrator & \textbf{0.58} & 0.55 & 4.4\% & 0.38 & 0.74 & 0.89 & 0.89 \\
 \midrule
 \multirow{7}{*}{CPV 03}
- & 3$\sigma$, CPV class & 0.62 & 0.66 & 1.5\% & 0.01 & 0.05 & 0.97 & 0.83 \
- & Isolation Forest in groups & 0.56 & 0.50 & 5.4\% & 0.54 & 0.77 & 0.93 & 0.91 \
- & v1 & 0.61 & 0.67 & 4.7\% & 0.43 & 0.80 & 0.99 & 0.95 \
- & v2 screening & 0.61 & 0.68 & 4.4\% & 0.43 & 0.77 & 0.94 & 0.92 \
- & v2, calibrator on sighted labels & 0.50 & 0.59 & 5.7\% & 0.47 & 0.76 & 0.83 & 0.89 \
- & v2, monotone calibrator on blind labels & \textbf{0.66} & 0.63 & 3.1\% & 0.34 & 0.67 & 0.83 & 0.85 \
- & hybrid, same calibrator & \textbf{0.66} & 0.65 & 3.7\% & 0.39 & 0.74 & 0.93 & 0.92 \
+ & 3$\sigma$, CPV class & 0.62 & 0.66 & 1.5\% & 0.01 & 0.05 & 0.97 & 0.83 \\
+ & Isolation Forest in groups & 0.56 & 0.50 & 5.4\% & 0.54 & 0.77 & 0.93 & 0.91 \\
+ & v1 & 0.61 & 0.67 & 4.7\% & 0.43 & 0.80 & 0.99 & 0.95 \\
+ & v2 screening & 0.61 & 0.68 & 4.4\% & 0.43 & 0.77 & 0.94 & 0.92 \\
+ & v2, calibrator on sighted labels & 0.50 & 0.59 & 5.7\% & 0.47 & 0.76 & 0.83 & 0.89 \\
+ & v2, monotone calibrator on blind labels & \textbf{0.66} & 0.63 & 3.1\% & 0.34 & 0.67 & 0.83 & 0.85 \\
+ & hybrid, same calibrator & \textbf{0.66} & 0.65 & 3.7\% & 0.39 & 0.74 & 0.93 & 0.92 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -472,7 +709,7 @@ point we return to in the Discussion. The AP of all calibrated variants is below
 stage on injected errors, because the calibrator ranks injected moderate deviations lower than the
 annotator-relevant cases it was trained on.
 
-\subsection{Explanations}
+\subsection{Explanations}\label{sec:res-explain}
 
 \begin{figure}[t]
 \centering
@@ -493,15 +730,15 @@ with a reference estimate from 2{,}000 permutations (Table~\ref{tab:explain}).
 \small
 \begin{tabular}{lr}
 \toprule
-Mean absolute error vs.\ 2{,}000-permutation reference, risk points & 0.98 \
-Top-3 features shared with the reference & 85.0\% \
-Spearman correlation of $|\phi|$ with the reference & 0.95 \
-Top-3 features shared between runs with different seeds & 79.5\% \
-Median additivity gap $|\sum_j\phi_j-(f(x)-\mathbb{E}f(z))|$, risk points & 0.02 \
-Time per item, ms & 32 \
+Mean absolute error vs.\ 2{,}000-permutation reference, risk points & 0.98 \\
+Top-3 features shared with the reference & 85.0\% \\
+Spearman correlation of $|\phi|$ with the reference & 0.95 \\
+Top-3 features shared between runs with different seeds & 79.5\% \\
+Median additivity gap $|\sum_j\phi_j-(f(x)-\mathbb{E}f(z))|$, risk points & 0.02 \\
+Time per item, ms & 32 \\
 \midrule
-Risk drop when replacing the top-1 / top-2 / top-3 features by background values & 87.9 / 89.7 / 91.1 \
-Risk drop when replacing 1 / 2 / 3 random features & 9.7 / 13.0 / 17.1 \
+Risk drop when replacing the top-1 / top-2 / top-3 features by background values & 87.9 / 89.7 / 91.1 \\
+Risk drop when replacing 1 / 2 / 3 random features & 9.7 / 13.0 / 17.1 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -522,7 +759,7 @@ different good priced as if it were comparable, or a mis-coded item.
 %==============================================================================
 \section{Discussion}
 
-\paragraph{Two signals, not one.} The experiments separate two jobs that a single anomaly score
+\paragraph{Two signals, not one.}\label{sec:discussion-signals} The experiments separate two jobs that a single anomaly score
 conflates. Gross data errors --- unit-scale confusions and lot totals entered as unit prices --- are found
 by the screening stage alone, without labels, in both categories (recall 0.90--0.99). Deciding which of
 the many deviations deserve an auditor's time is where the learned calibrator adds value (AP 0.49 $\to$
@@ -549,12 +786,41 @@ split lowers AP of the screening stage by 0.10--0.19, more than any change of de
 rules within well-formed groups. Investment in making item records comparable --- pack sizes, units,
 descriptions --- pays off before investment in more complex models.
 
-\paragraph{Limitations.} The annotation was produced by a language model and verified by a non-expert
-human on a subsample ($\kappa=0.64$), not by professional auditors; both annotation rounds used the same model family, so their
-agreement is an upper bound on independent agreement. The recall estimate depends on few confirmed items in
-the large \emph{normal} stratum, which the bootstrap intervals reflect. The data cover one country, a short
-period and two CPV divisions. Finally, ``anomalous price'' is operationalised as what warrants an auditor's
-attention; it is not evidence of a violation.
+\paragraph{Operating point.} The calibrated model flags 2--4\% of analysed items, the screening stage 4--6\%.
+For a selection of the size of our reference (about 15 thousand analysed items) this is a queue of
+300--600 items; the data-error indicator adds the extremes that the calibrator ranks low (15 of 64 queued
+items in the selection of Section~\ref{sec:discussion-signals}). Because the ranking quality of the
+calibrated model is high at the top of the list (Fig.~\ref{fig:pr}), an audit unit with limited capacity
+can work through the queue from the top and stop when its budget is spent; the threshold matters less than
+the ordering. The threshold can be adjusted by analysts within bounds; we report F1 at the threshold chosen
+by cross-validation only to compare methods.
+
+\subsection{Threats to validity}
+
+\paragraph{Construct validity.} ``Anomalous price'' is operationalised as what a reviewer following the
+written protocol considers worth an auditor's attention. This is neither a legal finding nor evidence of
+a violation, and the protocol's guide values ($2\times$, $0.4\times$) are a convention. The human check
+shows that a different reviewer applies the protocol differently when reference prices are not comparable.
+The synthetic benchmark measures detection of known error types, not their relevance.
+
+\paragraph{Internal validity.} Both annotation rounds were produced by the same language-model family; the
+agreement between them is therefore an upper bound on the agreement of independent annotators. The blind
+round removed the model's decision from the cards, but the neutral reference prices are themselves a form
+of guidance. The strata were defined by the v1 decision; Horvitz--Thompson weighting keeps the estimates
+unbiased, but the recall estimate rests on few confirmed items in the large \emph{normal} stratum (one in
+the blind round, weight 60), which the wide bootstrap intervals for F1 reflect. The calibrator's threshold
+is chosen on few positives; nested cross-validation prevents optimistic bias but not variance.
+
+\paragraph{External validity.} The data cover one procurement system, two months of publication and two CPV
+divisions of goods with physical units. Services, works and goods priced per set or per service unit are
+less comparable and were not evaluated. Transfer of the calibrator was tested only on injected errors in
+the second category, not on its annotated relevance.
+
+\paragraph{Responsible use.} A list of suspicious prices names procuring entities. Several safeguards
+follow from the design: the system shows its reasons (the comparison group, the deviation and the feature
+contributions) rather than a bare score; a verdict requires a second auditor's approval; the data-error
+indicator is worded as a request to check the record, not as an accusation; and the interface does not
+use the term ``violation''. Results should be used to prioritise review, not to sanction.
 
 %==============================================================================
 \section{Conclusion}
@@ -590,7 +856,7 @@ After using this tool, the authors reviewed and edited the content as needed, an
 for the publication's content.
 
 % --- bibliography (generated by bib2tex.py) ---
-\begin{thebibliography}{37}
+\begin{thebibliography}{40}
 
 \bibitem{prozorro2026q4}
 {Prozorro}, ``In Q4 2025, 207 thousand procurements worth {UAH} 463 billion were announced in Prozorro,'' 2026. [Online]. Available: \url{https://prozorro.gov.ua/uk/news/u-4-kvartali-2025-roku-v-prozorro-ogolosyly-207-tys-zakupivel-na-463-mlrd-grn}. In Ukrainian. Accessed 24 November 2026.
@@ -679,14 +945,23 @@ A. Tversky and D. Kahneman, ``Judgment under Uncertainty: Heuristics and Biases,
 \bibitem{salton1988weighting}
 G. Salton and C. Buckley, ``Term-weighting approaches in automatic text retrieval,'' \emph{Information Processing \& Management}, vol.~24, no.~5, pp.~513--523, 1988. \doi{10.1016/0306-4573(88)90021-0}
 
+\bibitem{macqueen1967kmeans}
+J. MacQueen, ``Some methods for classification and analysis of multivariate observations,'' \emph{Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability}, vol.~1, pp.~281--297, 1967.
+
 \bibitem{rousseeuw1987silhouettes}
 P. J. Rousseeuw, ``Silhouettes: A graphical aid to the interpretation and validation of cluster analysis,'' \emph{Journal of Computational and Applied Mathematics}, vol.~20, pp.~53--65, 1987. \doi{10.1016/0377-0427(87)90125-7}
+
+\bibitem{reimers2019sbert}
+N. Reimers and I. Gurevych, ``Sentence-{BERT}: Sentence Embeddings using Siamese {BERT}-Networks,'' in \emph{Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP-IJCNLP)}, pp.~3980--3990, 2019. \doi{10.18653/v1/D19-1410}
 
 \bibitem{jolliffe2016pca}
 I. T. Jolliffe and J. Cadima, ``Principal component analysis: a review and recent developments,'' \emph{Philosophical Transactions of the Royal Society A}, vol.~374, no.~2065, Art.~no.~20150202, 2016. \doi{10.1098/rsta.2015.0202}
 
 \bibitem{satopaa2011kneedle}
 V. Satop{\"a}{\"a}, J. Albrecht, D. Irwin, and B. Raghavan, ``Finding a ``Kneedle'' in a Haystack: Detecting Knee Points in System Behavior,'' in \emph{2011 31st International Conference on Distributed Computing Systems Workshops}, pp.~166--171, 2011. \doi{10.1109/ICDCSW.2011.20}
+
+\bibitem{campello2013hdbscan}
+R. J. G. B. Campello, D. Moulavi, and J. Sander, ``Density-Based Clustering Based on Hierarchical Density Estimates,'' in \emph{Advances in Knowledge Discovery and Data Mining: PAKDD 2013}, pp.~160--172, 2013. \doi{10.1007/978-3-642-37456-2_14}
 
 \bibitem{friedman2001gbm}
 J. H. Friedman, ``Greedy function approximation: A gradient boosting machine,'' \emph{The Annals of Statistics}, vol.~29, no.~5, pp.~1189--1232, 2001. \doi{10.1214/aos/1013203451}
