@@ -246,3 +246,23 @@ if __name__ == "__main__":
     fig_agreement()
     fig_label_composition()
     fig_pr_curves()
+
+
+def fig_reliability() -> None:
+    """Reliability of the ranking scores: mean score vs observed rate per bin (weighted)."""
+    t = pd.read_csv(RES / "reliability.csv")
+    fig, ax = plt.subplots(figsize=(3.2, 2.6))
+    ax.plot([0, 1], [0, 1], ":", color="#8c8c8c", linewidth=1)
+    ax.plot(t["mean_score"], t["observed_rate"], "o-", color="#3b6ea5")
+    for _, r in t.iterrows():
+        ax.annotate(str(int(r["n"])), (r["mean_score"], r["observed_rate"]), textcoords="offset points",
+                    xytext=(4, -10), fontsize=6.5)
+    ax.set_xlabel("Mean score in bin")
+    ax.set_ylabel("Observed confirmation rate")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    save(fig, "fig_reliability")
+
+
+if __name__ == "__main__":
+    fig_reliability()
