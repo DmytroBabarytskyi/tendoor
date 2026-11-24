@@ -1,6 +1,6 @@
 """Build arxiv_upload.zip: main.tex (bibliography inlined) + figs/*.pdf.
 
-    python figures.py && python bib2tex.py && python build_arxiv.py
+    python figures.py && python tables.py && python bib2tex.py && python build_arxiv.py
 
 Refuses to build while the text still contains \\TBD{...} placeholders.
 """

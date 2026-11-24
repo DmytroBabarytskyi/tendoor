@@ -19,7 +19,7 @@ for Horvitz–Thompson weights are included).
 | Files | Round | What the annotator saw |
 |---|---|---|
 | `review_cards*.json`, `decisions*.json` | sighted | item record and the v1 decision and risk score |
-| `blind_cards.json`, `blind_decisions_*.json` | blind | item record and neutral reference prices only (`blind_protocol.md`) |
+| `blind_cards.json`, `blind_decisions_*.json` | blind | item record and neutral reference prices only (`blind_protocol.md`, English: `blind_protocol_en.md`) |
 | `human_sample.json`, `human_labels.json` | human check | 80 blind cards, annotation hidden |
 
 The sighted and blind rounds were annotated by a large language model (Claude, Anthropic) under the written

@@ -66,14 +66,15 @@ def fig_importance() -> None:
     t = pd.read_csv(RES / "importance.csv", encoding="utf-8-sig", index_col=0)["mean_abs_phi_points"]
     t.index = [FEATURE_EN.get(i.split(" — ")[0], i) for i in t.index]
     t = t[t >= 0.1].sort_values()
-    fig, ax = plt.subplots(figsize=(4.6, 3.4))
+    fig, ax = plt.subplots(figsize=(4.6, 3.2))
     ax.barh(t.index, t.to_numpy(), color="#3b6ea5")
-    ax.set_xscale("log")
-    ax.set_xlabel("Mean |Shapley value|, risk points (log scale)")
+    ax.set_xlabel("Mean |Shapley value|, risk points")
     ax.grid(axis="y", visible=False)
+    pad = t.max() * 0.012
     for y, v in enumerate(t.to_numpy()):
-        ax.text(v * 1.08, y, f"{v:.1f}", va="center", fontsize=7)
-    ax.set_xlim(0.08, t.max() * 3)
+        ax.text(v + pad, y, f"{v:.1f}", va="center", fontsize=7)
+    ax.set_xlim(0, t.max() * 1.1)
+    ax.margins(y=0.02)
     save(fig, "fig_importance")
 
 
@@ -87,7 +88,7 @@ def fig_synthetic_recall() -> None:
         "гібрид, калібратор на сліпій розмітці, монотонний": "Hybrid, blind labels",
     }
     types = [("recall moderate", "Moderate\n(×2–3)"), ("recall strong", "Strong\n(×5–10)"),
-             ("recall unit", "Unit scale\n(×1000)"), ("recall lot_total", "Lot total\n(×qty)")]
+             ("recall unit", "Unit scale\n(×1000 /\n×0.001)"), ("recall lot_total", "Lot total\n(×qty)")]
     colors = ["#8c8c8c", "#d98c4a", "#3b6ea5", "#5aa469"]
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8), sharey=True)
     for ax, (cat, title) in zip(axes, (("15", "CPV 15 (training category)"), ("03", "CPV 03 (held out)")),
@@ -98,7 +99,7 @@ def fig_synthetic_recall() -> None:
         for k, (m, label) in enumerate(methods.items()):
             vals = [sub.loc[m, c] for c, _ in types]
             ax.bar(x + (k - 1.5) * w, vals, w, label=label, color=colors[k])
-        ax.set_xticks(x, [lbl for _, lbl in types])
+        ax.set_xticks(x, [lbl for _, lbl in types], fontsize=7.5)
         ax.set_ylim(0, 1.15)
         ax.set_title(title, fontsize=9)
         ax.grid(axis="x", visible=False)
@@ -190,25 +191,26 @@ def fig_label_composition() -> None:
                ("unit_error", "unit error", "#f0a04b"), ("data_error", "other data error", "#9b6fb0"),
                ("justified", "not anomalous", "#cfcfcf"), ("other", "cannot judge", "#7f7f7f")]
     order = [("top", "Top-50 flagged by v1"), ("mid", "Other flagged by v1"), ("normal", "Not flagged by v1")]
-    fig, ax = plt.subplots(figsize=(3.5, 2.7))
+    fig, ax = plt.subplots(figsize=(3.5, 1.9))
     ticks = []
     for y, (s, label) in enumerate(order):
         items = [blind[i] for i in blind if strata.get(i) == s]
         left = 0.0
         for key, _, color in reasons:
             share = sum(1 for st, rs in items if rs == key) / len(items)
-            ax.barh(y, share, left=left, color=color, edgecolor="white", linewidth=0.5)
+            ax.barh(y, share, height=0.7, left=left, color=color, edgecolor="white", linewidth=0.5)
             left += share
         ticks.append(f"{label}\n(n = {len(items)})")
     ax.set_yticks(range(3), ticks, fontsize=7)
+    ax.tick_params(axis="x", labelsize=7)
     ax.invert_yaxis()
     ax.set_xlim(0, 1)
-    ax.set_xlabel("Share of annotated items")
+    ax.set_xlabel("Share of annotated items", fontsize=7.5)
     ax.grid(axis="y", visible=False)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, _, c in reasons]
-    fig.subplots_adjust(bottom=0.36)
-    fig.legend(handles, [n for _, n, _ in reasons], fontsize=6.5, ncol=3, loc="lower center",
-               bbox_to_anchor=(0.55, 0.0), frameon=False, columnspacing=1.0, handlelength=1.2)
+    ax.legend(handles, [n for _, n, _ in reasons], fontsize=6.5, ncol=3, loc="upper center",
+              bbox_to_anchor=(0.5, -0.32), frameon=False, columnspacing=1.0, handlelength=1.2,
+              labelspacing=0.3, borderaxespad=0.0)
     save(fig, "fig_labels")
 
 
