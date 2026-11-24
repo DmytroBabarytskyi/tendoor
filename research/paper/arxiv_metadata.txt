@@ -11,10 +11,10 @@ Explainable Detection of Anomalous Unit Prices in Public Procurement: Unsupervis
 
 AUTHORS
 -------
-Dmytro Babarytskyi, Tetiana Bilova
+Dmytro Babarytskyi, Tetiana Bilova, Oleksandr Babarytskyi
 
   Affiliation is not a separate arXiv field; it is on the PDF title page.
-  ORCIDs (0009-0009-3614-9601, 0000-0002-1085-7361) go to the arXiv account
+  ORCIDs (0009-0009-3614-9601, 0000-0002-1085-7361, 0000-0002-1690-1837) go to the arXiv account
   profiles, not to this field.
 
 
