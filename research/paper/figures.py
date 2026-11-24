@@ -190,7 +190,8 @@ def fig_label_composition() -> None:
                ("unit_error", "unit error", "#f0a04b"), ("data_error", "other data error", "#9b6fb0"),
                ("justified", "not anomalous", "#cfcfcf"), ("other", "cannot judge", "#7f7f7f")]
     order = [("top", "Top-50 flagged by v1"), ("mid", "Other flagged by v1"), ("normal", "Not flagged by v1")]
-    fig, ax = plt.subplots(figsize=(3.5, 2.2))
+    fig, ax = plt.subplots(figsize=(3.5, 2.7))
+    ticks = []
     for y, (s, label) in enumerate(order):
         items = [blind[i] for i in blind if strata.get(i) == s]
         left = 0.0
@@ -198,15 +199,16 @@ def fig_label_composition() -> None:
             share = sum(1 for st, rs in items if rs == key) / len(items)
             ax.barh(y, share, left=left, color=color, edgecolor="white", linewidth=0.5)
             left += share
-        ax.text(1.01, y, f"n={len(items)}", va="center", fontsize=7)
-    ax.set_yticks(range(3), [lbl for _, lbl in order], fontsize=7)
+        ticks.append(f"{label}\n(n = {len(items)})")
+    ax.set_yticks(range(3), ticks, fontsize=7)
     ax.invert_yaxis()
-    ax.set_xlim(0, 1.12)
+    ax.set_xlim(0, 1)
     ax.set_xlabel("Share of annotated items")
     ax.grid(axis="y", visible=False)
     handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, _, c in reasons]
-    ax.legend(handles, [n for _, n, _ in reasons], fontsize=6, ncol=3, loc="upper center",
-              bbox_to_anchor=(0.5, -0.3), frameon=False)
+    fig.subplots_adjust(bottom=0.36)
+    fig.legend(handles, [n for _, n, _ in reasons], fontsize=6.5, ncol=3, loc="lower center",
+               bbox_to_anchor=(0.55, 0.0), frameon=False, columnspacing=1.0, handlelength=1.2)
     save(fig, "fig_labels")
 
 

@@ -18,10 +18,8 @@
 \usepackage[utf8]{inputenc}
 \usepackage{xurl}  % переноси довгих URL у будь-якому місці
 \usepackage{xcolor}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
 \usepackage{microtype}
 \usepackage[hidelinks,breaklinks]{hyperref}
 
@@ -204,19 +202,67 @@ groups large enough to be analysed.
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[node distance=4mm and 6mm, every node/.style={font=\small},
-  box/.style={draw, rounded corners, align=center, minimum height=10mm, text width=27mm, fill=gray!6},
-  arr/.style={-{Stealth[length=2mm]}}]
-\node[box] (pack) {Pack-size\\normalisation};
-\node[box, right=of pack] (grp) {Hierarchical\\CPV $\times$ unit groups};
-\node[box, right=of grp] (txt) {Semantic split\\(TF-IDF, $k$-means)};
-\node[box, below=of txt] (scr) {Screening: Tukey,\\robust $z$, DBSCAN};
-\node[box, left=of scr] (cal) {Calibrator on\\review verdicts};
-\node[box, left=of cal] (shap) {Shapley\\explanations};
-\draw[arr] (pack) -- (grp); \draw[arr] (grp) -- (txt); \draw[arr] (txt) -- (scr);
-\draw[arr] (scr) -- (cal); \draw[arr] (cal) -- (shap);
-\end{tikzpicture}
-\caption{The two-stage pipeline: comparability layer (top), screening and calibration (bottom).}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=4mm and 5mm, every node/.style={font=\footnotesize},
+  proc/.style={draw, rounded corners, align=center, minimum height=9mm, text width=26mm, fill=gray!6},
+  dec/.style={draw, diamond, aspect=2.2, align=center, inner sep=1pt, text width=17mm, fill=yellow!8},
+  io/.style={draw, trapezium, trapezium left angle=75, trapezium right angle=105, align=center,
+             minimum height=8mm, text width=24mm, fill=blue!5},
+  out/.style={draw, rounded corners, align=center, minimum height=9mm, text width=26mm, fill=green!8},
+  lane/.style={draw, dashed, rounded corners, gray, inner sep=3mm},
+  arr/.style={-{Stealth[length=2mm]}},
+  lbl/.style={font=\scriptsize, inner sep=1pt}]
+% ---- stage A: comparability
+\node[io] (in) {Items: description, CPV code, unit, quantity $q$, price $p$};
+\node[dec, right=of in] (pk) {Piece unit and pack size $s$ in text?};
+\node[proc, right=of pk] (conv) {$p\gets p/s$,\ \ $q\gets q\,s$\\unit $\gets$ kg or l};
+\node[proc, right=of conv] (grp) {Groups by unit $\times$ 8-digit CPV code};
+\node[dec, right=of grp] (sm) {$|g|<10$?};
+\node[proc, below=7mm of sm] (up) {Merge up: 5-digit category, then 4-digit class};
+\node[dec, left=of up] (big) {$|g|\ge30$?};
+\node[proc, left=of big] (spl) {$k$-means on TF-IDF of descriptions, $k\le8$; keep if silhouette $>0.15$};
+% ---- stage B: screening in each group
+\node[proc, below=9mm of spl] (ext) {Extremes $E_g$: outside $Q_1-3\,\mathrm{IQR}\dots Q_3+3\,\mathrm{IQR}$};
+\node[proc, right=of ext] (z) {Robust $z$ on $g\setminus E_g$, MAD floor 0.15};
+\node[proc, right=of z] (db) {DBSCAN noise $N_g$ in PCA of $(2\ell,\log q,\sin m,\cos m)$};
+\node[proc, right=of db] (r) {Screening flag $r=E\lor|z|\ge4\lor(N\land|z|\ge3)$};
+% ---- stage C: calibration and outputs
+\node[proc, below=9mm of r] (cal) {Monotone calibrator\\$\pi=f(\mathbf{x})$, 19 features};
+\node[out, left=of cal] (risk) {Risk $=100\,\pi$;\\high risk if $\pi\ge\tau$};
+\node[out, left=of risk] (err) {Likely data error\\if $i\in E_g$};
+\node[proc, left=of err] (shap) {Shapley values (24 permutations) if $\pi\ge\tau/2$};
+\node[out, below=6mm of risk, text width=60mm] (queue) {Review queue: high risk $\cup$ likely data error};
+% ---- edges
+\draw[arr] (in) -- (pk);
+\draw[arr] (pk) -- node[lbl, above]{yes} (conv);
+\draw[arr] (pk.south) -- ++(0,-3mm) -| node[lbl, pos=0.2, below]{no} (grp.south);
+\draw[arr] (conv) -- (grp);
+\draw[arr] (grp) -- (sm);
+\draw[arr] (sm) -- node[lbl, right]{yes} (up);
+\draw[arr] (sm.east) -- ++(3mm,0) |- node[lbl, pos=0.3, right]{no} (up.east);
+\draw[arr] (up) -- (big);
+\draw[arr] (big) -- node[lbl, above]{yes} (spl);
+\draw[arr] (big.south) -- ++(0,-4mm) -| node[lbl, pos=0.15, below]{no} (ext.north east);
+\draw[arr] (spl) -- (ext);
+\draw[arr] (ext) -- (z); \draw[arr] (z) -- (db); \draw[arr] (db) -- (r);
+\draw[arr] (r) -- (cal);
+\draw[arr] (cal) -- (risk);
+\draw[arr] (ext.south) -- ++(0,-3mm) -| (err.north);
+\draw[arr] (cal.south) -- ++(0,-2mm) -| (shap.south);
+\draw[arr] (risk) -- (queue);
+\draw[arr] (err.south) |- (queue.west);
+% ---- lanes
+\begin{scope}[on background layer]
+\node[lane, fit=(in)(pk)(conv)(grp)(sm)(up)(big)(spl), label={[font=\scriptsize\itshape, anchor=north west]north west:A. Comparability}] {};
+\node[lane, fit=(ext)(z)(db)(r), label={[font=\scriptsize\itshape, anchor=north west]north west:B. Screening in each group with $|g|\ge10$}] {};
+\node[lane, fit=(shap)(err)(risk)(cal)(queue), label={[font=\scriptsize\itshape, anchor=north west]north west:C. Calibration and signals}] {};
+\end{scope}
+\end{tikzpicture}}
+\caption{The two-stage method. A: records are made comparable (pack sizes, hierarchical CPV $\times$ unit
+groups, semantic split). B: each group is screened with robust rules; $\ell=\log p$, $m$ the month. C: a
+monotone calibrator turns screening features into a risk; extremes are additionally reported as likely
+data errors; candidates are explained with Shapley values.}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -258,18 +304,33 @@ uses quantity and cyclically encoded month in addition to price.
 
 \subsection{Unsupervised screening}
 
-Within each group $g$ with log prices $\ell_i$:
-\begin{enumerate}
-\item \emph{Extremes}: $\ell_i$ outside $[Q_1-3\,\mathrm{IQR},\,Q_3+3\,\mathrm{IQR}]$; extremes are excluded
-from the estimation of the group's centre and spread.
-\item \emph{Robust $z$-score}: $z_i=(\ell_i-\tilde\ell_g)/\max(1.4826\,\mathrm{MAD}_g,\,0.15)$, where the floor
-prevents ordinary market variation of about 15\% from being flagged in very homogeneous groups.
-\item \emph{Density outliers}: DBSCAN~\cite{ester1996dbscan} in the PCA projection~\cite{jolliffe2016pca}
-of standardised $[2\ell, \log q, \sin m, \cos m]$ (price weighted twice, quantity, cyclically encoded month),
-with $\varepsilon$ chosen at the knee of the sorted $k$-distance curve~\cite{satopaa2011kneedle}.
-\end{enumerate}
-An item is flagged if it is an extreme, or $|z_i|\ge4$, or it is a density outlier with $|z_i|\ge3$: a
-density outlier must be a \emph{price} outlier, not merely unusual in quantity or date. The thresholds
+Within each group $g$ with log prices $\ell_i=\log p_i$ three rules are applied.
+
+\emph{Extremes.} An item is an extreme if its log price lies outside the outer Tukey fences of the group,
+\begin{equation}
+E_g=\bigl\{\,i\in g:\ \ell_i\notin[\,Q_1-3\,\mathrm{IQR},\ Q_3+3\,\mathrm{IQR}\,]\bigr\},
+\label{eq:extremes}
+\end{equation}
+where $Q_1$, $Q_3$ are the quartiles of $\ell$ in $g$. Extremes are excluded from the estimation of the
+group's centre and spread.
+
+\emph{Robust $z$-score.} On the remaining items,
+\begin{equation}
+z_i=\frac{\ell_i-\tilde\ell_g}{\max\left(1.4826\cdot\mathrm{MAD}_g,\ 0.15\right)},
+\end{equation}
+where $\tilde\ell_g$ is the median and $\mathrm{MAD}_g$ the median absolute deviation of $\ell$ in $g$. The
+floor of 0.15 prevents ordinary market variation of about 15\% from being flagged in very homogeneous groups.
+
+\emph{Density outliers.} DBSCAN~\cite{ester1996dbscan} is run in the PCA projection~\cite{jolliffe2016pca}
+of the standardised vector $(2\ell,\ \log q,\ \sin m,\ \cos m)$ --- price weighted twice, quantity and the
+cyclically encoded month --- with $\varepsilon$ chosen at the knee of the sorted $k$-distance
+curve~\cite{satopaa2011kneedle}; its noise points form the set $N_g$.
+
+The screening decision combines the three rules,
+\begin{equation}
+r_i=\bigl[i\in E_g\bigr]\ \lor\ \bigl[|z_i|\ge4\bigr]\ \lor\ \bigl[i\in N_g\ \land\ |z_i|\ge3\bigr]:
+\end{equation}
+a density outlier must be a \emph{price} outlier, not merely unusual in quantity or date. The thresholds
 (the extreme factor, $|z|\ge4$ and $\ge3$, the MAD floor, the price weight) were chosen by a grid search on
 injected anomalies in the training category and are exposed to analysts as parameters with bounds. With the
 knee-based $\varepsilon$, DBSCAN has no free parameter that an analyst would have to tune per group;
@@ -295,70 +356,39 @@ points; Section~\ref{sec:res-explain}). $\uparrow$: monotone non-decreasing cons
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}p{0.27\columnwidth}p{0.55\columnwidth}r@{}}
+\begin{tabular}{@{}p{0.30\columnwidth}p{0.52\columnwidth}r@{}}
 \toprule
 Feature & Meaning & $|\phi|$ \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Deviation (screening stage)}} \\
-\texttt{abs\_z} $\uparrow$ & absolute robust $z$-score of log price & 69.3 \\
-\texttt{z} & signed robust $z$ (more or less expensive) & 3.9 \\
-\texttt{log\_ratio} & log ratio of price to group median & 7.3 \\
-\texttt{is\_extreme} $\uparrow$ & outside $[Q_1-3\,\mathrm{IQR},Q_3+3\,\mathrm{IQR}]$ & 0.0 \\
-\texttt{is\_noise} & DBSCAN noise point & 0.0 \\
+Strength of deviation $|z|$ $\uparrow$ & absolute robust $z$-score of the log price & 69.3 \\
+Direction of deviation $z$ & signed robust $z$ (dearer or cheaper) & 3.9 \\
+Price ratio & log ratio of the price to the group median & 7.3 \\
+Extreme $\uparrow$ & outside the outer Tukey fences, eq.~\eqref{eq:extremes} & 0.0 \\
+Density outlier & DBSCAN noise point & 0.0 \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Group context}} \\
-\texttt{log\_group\_size} & log number of comparable items & 2.6 \\
-\texttt{group\_spread} & robust spread (MAD) of log prices & 2.6 \\
-\texttt{text\_dist} & TF-IDF cosine distance of description to group centroid & 9.0 \\
-\texttt{desc\_generic} & generic description (``various products'') & 0.4 \\
+Group size & log number of comparable items & 2.6 \\
+Price spread & MAD of log prices in the group & 2.6 \\
+Description distance & TF-IDF cosine distance of the description to the group centroid & 9.0 \\
+Generic description & ``various products'', ``as per invoice'' & 0.4 \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Units and packs}} \\
-\texttt{pack\_converted} & price converted from pack size & 0.4 \\
-\texttt{has\_pack} & pack size stated in description & 0.3 \\
-\texttt{pack\_mismatch} & $|\log$ ratio $-\log$ pack size$|$ (per-pack price) & 0.0 \\
-\texttt{unit\_piece} & piece-type unit (piece, pack, bottle, \ldots) & 2.1 \\
-\texttt{unit\_weight} & base unit kilogram & 0.9 \\
-\texttt{unit\_volume} & base unit litre & 0.1 \\
+Pack converted & price converted from the pack size & 0.4 \\
+Pack size stated & pack size found in the description & 0.3 \\
+Per-pack price & closeness of the price ratio to the pack size & 0.0 \\
+Piece-type unit & piece, pack, bottle, jar, set & 2.1 \\
+Weight unit & base unit kilogram & 0.9 \\
+Volume unit & base unit litre & 0.1 \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Price source and volume}} \\
-\texttt{src\_unit\_value} & price from item-level unit value & 1.0 \\
-\texttt{src\_contract} & price from contract & 1.6 \\
-\texttt{src\_expected} & price from expected value & 0.0 \\
-\texttt{log\_qty} & log quantity in base unit & 2.8 \\
+Item unit value & price stated per unit in the item & 1.0 \\
+Contract price & price taken from the contract & 1.6 \\
+Expected value & price taken from the expected value & 0.0 \\
+Quantity & log quantity in the base unit & 2.8 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-Algorithm~\ref{alg:pipeline} summarises the full procedure for one selection.
-
-\begin{algorithm}[t]
-\caption{Two-stage screening of unit prices}
-\label{alg:pipeline}
-\footnotesize
-\begin{algorithmic}[1]
-\Require items $I$ with description, CPV code, unit, quantity, price; calibrator $f$ with threshold $\tau$
-\ForAll{$i\in I$ with a piece-type unit and a pack size $s_i$ parsed from the description}
-  \State $p_i\gets p_i/s_i$; \quad $q_i\gets q_i\cdot s_i$; \quad unit $\gets$ kg or l
-\EndFor
-\State $G\gets$ groups by (unit, CPV code); merge groups with $|g|<10$ up to category, then class
-\ForAll{$g\in G$ with $|g|\ge30$}
-  \State split $g$ by $k$-means on TF-IDF of lemmatised descriptions, $k\le8$
-  \State keep the split if silhouette $>0.15$ and all subgroups have $\ge5$ items
-\EndFor
-\ForAll{$g\in G$, $|g|\ge10$}
-  \State $E_g\gets\{i:\ell_i\notin[Q_1-3\,\mathrm{IQR},\,Q_3+3\,\mathrm{IQR}]\}$ \Comment{extremes}
-  \State $z_i\gets(\ell_i-\mathrm{med})/\max(1.4826\,\mathrm{MAD},0.15)$ on $g\setminus E_g$
-  \State $N_g\gets$ DBSCAN noise in PCA of $[2\ell,\log q,\sin m,\cos m]$, $\varepsilon$ at the knee
-  \State $r_i\gets[i\in E_g]\lor|z_i|\ge4\lor([i\in N_g]\land|z_i|\ge3)$ \Comment{screening flag}
-\EndFor
-\ForAll{analysed $i$}
-  \State $\pi_i\gets f(\mathbf{x}_i)$; \quad risk$_i\gets100\,\pi_i$; \quad flag$_i\gets\pi_i\ge\tau$
-  \State data\_error$_i\gets[i\in E_g]$ \Comment{second signal}
-  \If{$\pi_i\ge\tau/2$} \State $\boldsymbol\phi_i\gets$ Monte-Carlo Shapley values, 24 permutations \EndIf
-\EndFor
-\State \Return risk, flag, data\_error, $\boldsymbol\phi$ for every item
-\end{algorithmic}
-\end{algorithm}
 
 With few positive labels, an unconstrained tree ensemble can learn non-monotone relations from
 idiosyncrasies of the sample --- in our first blind-trained model, a twelvefold over-priced item with a
@@ -376,17 +406,16 @@ the training set to be audited first.
 \subsection{Explanations}
 
 For an item $x$ the contribution of feature $j$ is its Shapley value with respect to background items
-$z$ drawn from unflagged items of the same selection,
+$b$ drawn from unflagged items of the same selection,
 \begin{equation}
-\begin{split}
-\phi_j(x)=\sum_{S\subseteq F\setminus\{j\}}\frac{|S|!\,(d-|S|-1)!}{d!}
-  \bigl[\,&f(x_{S\cup\{j\}},z_{\bar S\setminus\{j\}})\\
-  &-f(x_S,z_{\bar S})\bigr],
-\end{split}
+\phi_j(x)=\sum_{S\subseteq F\setminus\{j\}}\frac{|S|!\,(d-|S|-1)!}{d!}\;\Delta_j(S),
 \end{equation}
-where $F$ is the set of $d=19$ features and $\bar S$ the complement of $S$; $f(x_S,z_{\bar S})$ denotes the
-calibrator's prediction for a point that takes features in $S$ from $x$ and the remaining ones from $z$,
-averaged over background items. The values are additive: they sum to the difference between the item's
+\begin{equation}
+\Delta_j(S)=v\bigl(S\cup\{j\}\bigr)-v(S),\qquad v(S)=\mathbb{E}_b\, f\bigl(x_S,\,b_{\bar S}\bigr),
+\end{equation}
+where $F$ is the set of $d=19$ features, $\bar S=F\setminus S$, and $f(x_S,b_{\bar S})$ is the
+calibrator's prediction for a point that takes the features in $S$ from $x$ and the remaining ones from a
+background item $b$. The values are additive: they sum to the difference between the item's
 risk and the mean risk of the background. Exact computation requires $2^{19}$ coalitions per item; they are
 estimated by Monte Carlo over random feature permutations~\cite{strumbelj2014explaining} (24
 permutations per item in the system). Contributions are reported in risk points and labelled in
@@ -734,7 +763,7 @@ Mean absolute error vs.\ 2{,}000-permutation reference, risk points & 0.98 \\
 Top-3 features shared with the reference & 85.0\% \\
 Spearman correlation of $|\phi|$ with the reference & 0.95 \\
 Top-3 features shared between runs with different seeds & 79.5\% \\
-Median additivity gap $|\sum_j\phi_j-(f(x)-\mathbb{E}f(z))|$, risk points & 0.02 \\
+Median additivity gap $|\sum_j\phi_j-(f(x)-\mathbb{E}_b f(b))|$, risk points & 0.02 \\
 Time per item, ms & 32 \\
 \midrule
 Risk drop when replacing the top-1 / top-2 / top-3 features by background values & 87.9 / 89.7 / 91.1 \\
