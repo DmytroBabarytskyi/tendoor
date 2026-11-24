@@ -6,7 +6,7 @@ Rebuild arxiv_upload.zip (build_arxiv.py) and check the compiled PDF before subm
 
 TITLE
 -----
-Explainable Detection of Anomalous Unit Prices in Public Procurement: Unsupervised Screening Calibrated on Review Verdicts
+Explainable Detection of Anomalous Unit Prices in Public Procurement: Robust Screening and Learned Ranking on Annotated Verdicts
 
 
 AUTHORS
@@ -20,7 +20,7 @@ Dmytro Babarytskyi, Tetiana Bilova, Oleksandr Babarytskyi
 
 ABSTRACT  (plain text, one paragraph, no LaTeX)
 -----------------------------------------------
-See _abstract.txt (1733 characters, limit 1920). Paste it as one paragraph.
+See _abstract.txt (1877 characters, limit 1920). Paste it as one paragraph.
 
 
 COMMENTS
