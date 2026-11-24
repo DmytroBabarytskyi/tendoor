@@ -1,7 +1,7 @@
 # Research materials
 
 Materials of the paper *Explainable Detection of Anomalous Unit Prices in Public Procurement: Unsupervised
-Screening Calibrated on Auditor Verdicts*.
+Screening Calibrated on Review Verdicts*.
 
 ```
 paper/         LaTeX source (main.tex, refs.bib)

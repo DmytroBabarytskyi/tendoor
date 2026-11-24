@@ -1,0 +1,48 @@
+ARXIV SUBMISSION METADATA
+=========================
+Paste each block into the corresponding field of the arXiv submission form.
+Rebuild arxiv_upload.zip (build_arxiv.py) and check the compiled PDF before submitting.
+
+
+TITLE
+-----
+Explainable Detection of Anomalous Unit Prices in Public Procurement: Unsupervised Screening Calibrated on Review Verdicts
+
+
+AUTHORS
+-------
+Dmytro Babarytskyi, Tetiana Bilova
+
+  Affiliation is not a separate arXiv field; it is on the PDF title page.
+  ORCIDs (0009-0009-3614-9601, 0000-0002-1085-7361) go to the arXiv account
+  profiles, not to this field.
+
+
+ABSTRACT  (plain text, one paragraph, no LaTeX)
+-----------------------------------------------
+See _abstract.txt (1733 characters, limit 1920). Paste it as one paragraph.
+
+
+COMMENTS
+--------
+Code, annotation data and experiment scripts: https://github.com/DmytroBabarytskyi/tendoor (directory research)
+
+  Page and figure counts are added after the first successful compilation.
+
+
+CATEGORIES
+----------
+Primary:      cs.LG  (Machine Learning)
+Cross-list:   cs.CY  (Computers and Society)
+
+
+ACM / MSC
+---------
+leave empty
+
+
+LICENSE
+-------
+CC BY 4.0  (Creative Commons Attribution 4.0)
+  Compatible with later submission to Decision Support Systems (Elsevier
+  accepts preprints on arXiv under any licence).
