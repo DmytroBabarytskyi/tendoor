@@ -19,7 +19,7 @@ down_revision: str | Sequence[str] | None = "5783bc9c9b0f"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# Параметри конвеєра за замовчуванням: підібрано перебором на реальних даних (розділ 3.11)
+# Параметри конвеєра за замовчуванням: підібрано перебором на реальних даних із вбудованими аномаліями
 DETECTION_DEFAULTS = {
     "min_group_size": 10,
     "cpv_grouping": True,
@@ -158,7 +158,7 @@ def upgrade() -> None:
     )
     # ### end Alembic commands ###
 
-    # Параметри конвеєра за замовчуванням — ті, що дали найкращу якість в експериментах (розділ 3.11)
+    # Параметри конвеєра за замовчуванням — підібрані на даних із вбудованими аномаліями
     op.execute(
         sa.text(
             "UPDATE pipeline_config SET value = CAST(:v AS jsonb) WHERE key = 'detection.defaults'"

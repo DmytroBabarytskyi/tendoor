@@ -39,7 +39,7 @@ QUEUE_V3 = _prev._QUEUE_BASE.format(
     join=" LEFT JOIN verdict v ON v.item_id = r.item_id",
 )
 
-# v2: дрібніший текстовий поділ, нормалізація фасовки, калібратор на вердиктах (розділ 3.12)
+# v2: дрібніший текстовий поділ, нормалізація фасовки, калібратор на розмічених вердиктах
 DETECTION_DEFAULTS_V2 = {
     **_v1.DETECTION_DEFAULTS,
     "text_split_min": 30,

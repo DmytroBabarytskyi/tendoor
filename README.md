@@ -6,9 +6,16 @@ Tendoor (Ten + door, укр. «Тендор») — аналітика цінов
 та виявляє аномальні цінові пропозиції методами машинного навчання, а аудитор розглядає
 підозрілі лоти й фіксує вердикти.
 
+*English.* Tendoor is an information system for screening unit prices of items in Ukrainian public
+procurement (Prozorro). It makes item records comparable (pack sizes, units, CPV groups, description-based
+subgroups), screens them with robust statistical and density-based rules, ranks deviations with a calibrated
+classifier and explains each decision with Shapley values. The method and its evaluation are described in
+the accompanying paper (`research/paper`).
+
 ## Структура
 
 ```
+research/   стаття, протокол і дані розмітки, код експериментів
 backend/    Python 3.12 (uv), FastAPI, SQLAlchemy + Alembic, PyMongo
 frontend/   React + TypeScript + Vite
 docker-compose.yml   postgres, mongo, api, worker, frontend
@@ -78,16 +85,22 @@ docker compose exec api python -m tendoor.cli create-user --email admin@example.
    Фасовка з опису («5 л», «180 г», «20х2 г») перераховує ціни «штук» у грн/кг чи грн/л.
 2. **Семантичний поділ.** Великі групи діляться за текстом: лематизація, TF-IDF, K-Means з кількістю кластерів за силуетом.
 3. **Некерований етап.** У кожній групі правило екстремумів, DBSCAN у просторі показників і модифіковане z-значення ціни.
-4. **Калібратор.** Градієнтний бустинг, донавчений на вердиктах аудиторів (`ml/models/calibrator_v2.joblib`). Ризик-бал 0–100 — це ймовірність, що аудитор підтвердить аномалію.
-5. **Результат.** Пояснення в одиниці моделі.
+4. **Калібратор.** Градієнтний бустинг з обмеженням монотонності (ризик не спадає зі зростанням відхилення),
+   навчений на стратифікованій розмітці 400 позицій ДК 021 «15» (`ml/models/calibrator_v2.joblib`).
+   Ризик-бал 0–100 — оцінка ймовірності, що перевіряльник підтвердить аномалію.
+5. **Пояснення.** Внесок кожної ознаки в ризик позиції (значення Шеплі, метод Монте-Карло).
+
+Розмітку виконано мовною моделлю за письмовим протоколом без доступу до рішень системи й перевірено людиною
+на підвибірці; деталі, дані розмітки й код експериментів — у каталозі `research/`.
 
 Параметри за замовчуванням редагує адміністратор («Параметри аналізу»);
 аналітик може перевизначити їх для окремого запиту.
 
 Оцінювання якості:
 - `tendoor.ml.evaluate` — синтетичні аномалії проти 3σ та IQR;
-- `tendoor.ml.experiments` — зважена стратифікована розмітка аудиторів, крос-валідація калібратора,
-  з параметром `--save` донавчання.
+- `tendoor.ml.experiments` — зважена стратифікована розмітка, крос-валідація калібратора,
+  з параметром `--save` донавчання;
+- `research/experiments` — експерименти статті (базові детектори, абляції, синтетичні помилки, пояснення).
 
 ## Синхронізація з Prozorro
 
@@ -130,3 +143,11 @@ curl -X POST http://localhost:8000/api/sync/jobs -H "Authorization: Bearer $TOKE
 
 **Vercel**: імпортувати репозиторій, Root Directory `frontend`. Решту задає `vercel.json`: збирання Vite,
 проксі `/api`, SPA-маршрути, заголовки безпеки.
+
+## Ліцензія та цитування
+
+Код поширюється за ліцензією [GNU AGPL-3.0](LICENSE): змінені версії, які надаються як мережевий сервіс,
+мають публікуватися з вихідним кодом. Дані розмітки в `research/annotation` — за ліцензією CC BY 4.0.
+
+Якщо ви використовуєте систему чи дані, посилайтеся на статтю (бібліографічний запис буде додано після
+публікації препринту).

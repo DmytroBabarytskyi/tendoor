@@ -41,6 +41,9 @@ FEATURES = [
     "log_qty",
 ]
 
+# обмеження монотонності: +1 — імовірність не спадає зі зростанням ознаки
+MONOTONE = {"abs_z": 1, "is_extreme": 1}
+
 # узагальнені описи («продукти харчування різні», «згідно накладної») — позиція не порівнювана
 _GENERIC = re.compile(r"продукт\w*\s+харчуван|різн[іи]|асортимент|згідно|накладн|продукці[яї]|\bдк\s*0?21")
 
@@ -107,6 +110,9 @@ class Calibrator:
             l2_regularization=1.0,
             min_samples_leaf=10,
             class_weight="balanced",
+            # ризик не спадає зі зростанням відхилення: на малій розмітці дерева інакше можуть
+            # «навчитися», що дуже сильне відхилення менш підозріле за помірне
+            monotonic_cst=[MONOTONE.get(f, 0) for f in FEATURES],
             random_state=random_state,
         )
         model.fit(x[FEATURES].astype(float), y)

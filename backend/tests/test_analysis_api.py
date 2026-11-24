@@ -1,5 +1,7 @@
 import pytest
 
+from tendoor.ml.calibration import load_calibrator
+
 BODY = {"cpv_prefixes": ["1531"], "date_from": "2026-09-01", "date_to": "2026-09-30"}
 
 
@@ -79,4 +81,4 @@ async def test_params_endpoint_is_for_analysts(client, login):
     body = (await client.get("/api/analysis/params", headers=analyst)).json()
     assert body["defaults"]["z_strong"] == 4.0
     assert body["bounds"]["anomaly_threshold"] == [0.05, 0.95]
-    assert body["calibrator_threshold"] == pytest.approx(0.6)
+    assert body["calibrator_threshold"] == pytest.approx(load_calibrator().meta["threshold"])

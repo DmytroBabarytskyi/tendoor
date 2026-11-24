@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Перевірка цін — 80 позицій</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e2dd; --accent:#2f5d8a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  .help { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .bar { display:flex; gap:12px; align-items:center; margin-bottom:16px; }
+  .progress { flex:1; height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .progress > div { height:100%; background:var(--accent); width:0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .desc { font-size:17px; font-weight:600; margin-bottom:4px; }
+  .meta { color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .price { font-size:22px; font-weight:600; margin:8px 0; }
+  .grid { display:grid; grid-template-columns: max-content 1fr; gap:4px 16px; font-size:14px; margin-bottom:12px; }
+  .grid dt { color:var(--muted); }
+  ul { margin:4px 0 0; padding-left:18px; font-size:13px; color:#3d3d39; }
+  .actions { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  button { font:inherit; padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  button.sel { border-color: var(--accent); background: #e8eff6; }
+  .nav { display:flex; justify-content:space-between; margin-top:12px; }
+  .done { margin-top:20px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Перевірка цін: чи варто аудитору звернути увагу?</h1>
+  <p class="help">Для кожної позиції оцініть ціну за одиницю, порівнюючи її з аналогами (той самий код ДК 021 і одиниця).
+  <b>Підозріла</b>: ціна помітно вища чи нижча за порівнянні товари (орієнтовно понад 2× чи менше 0,4× від типової, якщо опис
+  цього не пояснює), або ціна явно не за ту одиницю (за упаковку, грам, увесь лот), або очевидна помилка даних.
+  <b>Нормальна</b>: ціна правдоподібна для такого товару. <b>Не можу судити</b>: з опису неможливо зрозуміти, що куплено.
+  Клавіші: 1, 2, 3 — відповідь; ← → — гортати. Прогрес зберігається в браузері.</p>
+  <div class="bar"><span id="count"></span><div class="progress"><div id="prog"></div></div></div>
+  <div class="card" id="card"></div>
+  <div class="nav"><button id="prev">← Назад</button><button id="next">Далі →</button></div>
+  <div class="done"><button id="export">Завантажити результат (human_labels.json)</button></div>
+</main>
+<script>
+const DATA = __DATA__;
+const KEY = "tendoor-human-check-v1";
+const store = (() => { try { localStorage.setItem(KEY + "-t", "1"); return localStorage; } catch { return null; } })();
+const ans = JSON.parse((store && store.getItem(KEY)) || "{}");
+let i = Math.max(0, DATA.findIndex(c => !(c.id in ans)));
+const fmt = v => v == null ? "—" : Number(v).toLocaleString("uk-UA", {maximumFractionDigits: 2});
+const esc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const OPTS = [["confirmed", "1 · Підозріла"], ["not_anomaly", "2 · Нормальна"], ["needs_review", "3 · Не можу судити"]];
+
+function render() {
+  const c = DATA[i];
+  const card = document.getElementById("card");
+  card.innerHTML = `
+    <div class="desc">${esc(c.desc)}</div>
+    <div class="meta">${esc(c.title)} · ${esc(c.entity)}<br>${esc(c.cpv)}</div>
+    <div class="price">${fmt(c.doc_price)} грн за ${esc(c.doc_unit)}</div>
+    <dl class="grid">
+      <dt>Обсяг</dt><dd>${fmt(c.qty)} ${esc(c.doc_unit)}</dd>
+      <dt>У базовій одиниці</dt><dd>${fmt(c.price_base)} грн / ${esc(c.base_unit)}</dd>
+      <dt>Аналоги (${c.n})</dt><dd>медіана ${fmt(c.median)}; типовий діапазон ${fmt(c.p10)} – ${fmt(c.p90)}</dd>
+    </dl>
+    <div class="meta">Приклади аналогів (ціна за ${esc(c.base_unit)}):</div>
+    <ul>${c.examples.map(e => `<li>${esc(e)}</li>`).join("")}</ul>
+    <div class="actions">${OPTS.map(([k, t]) =>
+      `<button data-k="${k}" class="${ans[c.id] === k ? "sel" : ""}">${t}</button>`).join("")}</div>`;
+  card.querySelectorAll("button").forEach(b => b.onclick = () => choose(b.dataset.k));
+  const n = Object.keys(ans).length;
+  document.getElementById("count").textContent = `${i + 1} / ${DATA.length} · відповідей: ${n}`;
+  document.getElementById("prog").style.width = `${100 * n / DATA.length}%`;
+}
+function choose(k) {
+  ans[DATA[i].id] = k;
+  if (store) store.setItem(KEY, JSON.stringify(ans));
+  if (i < DATA.length - 1) i++;
+  render();
+}
+document.getElementById("prev").onclick = () => { if (i > 0) { i--; render(); } };
+document.getElementById("next").onclick = () => { if (i < DATA.length - 1) { i++; render(); } };
+document.getElementById("export").onclick = () => {
+  const blob = new Blob([JSON.stringify(ans, null, 1)], {type: "application/json"});
+  const a = Object.assign(document.createElement("a"), {href: URL.createObjectURL(blob), download: "human_labels.json"});
+  a.click();
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "1" || e.key === "2" || e.key === "3") choose(OPTS[+e.key - 1][0]);
+  if (e.key === "ArrowLeft") document.getElementById("prev").click();
+  if (e.key === "ArrowRight") document.getElementById("next").click();
+});
+render();
+</script>
+</body>
+</html>

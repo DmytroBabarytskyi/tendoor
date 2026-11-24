@@ -26,6 +26,7 @@ dist/
 data/
 *.joblib
 !backend/src/tendoor/ml/models/*.joblib
+!research/experiments/results/*.joblib
 
 # IDE / ОС
 .idea/
@@ -37,5 +38,8 @@ Thumbs.db
 # результати навантажувального тестування (копіюються в docs/notes/loadtest)
 loadtest/results/
 
-# локальні налаштування Claude Code
+# локальні налаштування інструментів розробки
 .claude/
+
+# згенерована сторінка перевірки розмітки
+research/annotation/human_check.html
