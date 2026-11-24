@@ -205,65 +205,45 @@ groups large enough to be analysed.
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  node distance=4mm and 5mm, every node/.style={font=\footnotesize},
-  proc/.style={draw, rounded corners, align=center, minimum height=9mm, text width=26mm, fill=gray!6},
-  dec/.style={draw, diamond, aspect=2.2, align=center, inner sep=1pt, text width=17mm, fill=yellow!8},
+  node distance=9mm and 8mm, every node/.style={font=\footnotesize},
+  proc/.style={draw, rounded corners, align=center, minimum height=13mm, text width=33mm, fill=gray!6},
   io/.style={draw, trapezium, trapezium left angle=75, trapezium right angle=105, align=center,
-             minimum height=8mm, text width=24mm, fill=blue!5},
-  outbox/.style={draw, rounded corners, align=center, minimum height=9mm, text width=26mm, fill=green!8},
-  lane/.style={draw, dashed, rounded corners, gray, inner sep=3mm},
-  arr/.style={-{Stealth[length=2mm]}},
-  lbl/.style={font=\scriptsize, inner sep=1pt}]
-% ---- stage A: comparability
-\node[io] (in) {Items: description, CPV code, unit, quantity $q$, price $p$};
-\node[dec, right=of in] (pk) {Piece unit and pack size $s$ in text?};
-\node[proc, right=of pk] (conv) {$p\gets p/s$,\ \ $q\gets q\,s$\\unit $\gets$ kg or l};
-\node[proc, right=of conv] (grp) {Groups by unit $\times$ 8-digit CPV code};
-\node[dec, right=of grp] (sm) {$|g|<10$?};
-\node[proc, below=7mm of sm] (up) {Merge up: 5-digit category, then 4-digit class};
-\node[dec, left=of up] (big) {$|g|\ge30$?};
-\node[proc, left=of big] (spl) {$k$-means on TF-IDF of descriptions, $k\le8$; keep if silhouette $>0.15$};
-% ---- stage B: screening in each group
-\node[proc, below=9mm of spl] (ext) {Extremes $E_g$: outside $Q_1-3\,\mathrm{IQR}\dots Q_3+3\,\mathrm{IQR}$};
-\node[proc, right=of ext] (z) {Robust $z$ on $g\setminus E_g$, MAD floor 0.15};
-\node[proc, right=of z] (db) {DBSCAN noise $N_g$ in PCA of $(2\ell,\log q,\sin m,\cos m)$};
-\node[proc, right=of db] (r) {Screening flag $r=E\lor|z|\ge4\lor(N\land|z|\ge3)$};
-% ---- stage C: calibration and outputs
-\node[proc, below=9mm of r] (cal) {Monotone calibrator\\$\pi=f(\mathbf{x})$, 19 features};
-\node[outbox, left=of cal] (risk) {Risk $=100\,\pi$;\\high risk if $\pi\ge\tau$};
-\node[outbox, left=of risk] (err) {Likely data error\\if $i\in E_g$};
-\node[proc, left=of err] (shap) {Shapley values (24 permutations) if $\pi\ge\tau/2$};
-\node[outbox, below=6mm of risk, text width=60mm] (queue) {Review queue: high risk $\cup$ likely data error};
+             minimum height=13mm, text width=27mm, fill=blue!5},
+  outbox/.style={draw, rounded corners, align=center, minimum height=13mm, text width=33mm, fill=green!8},
+  stage/.style={rotate=90, anchor=south, font=\scriptsize\bfseries, text=gray},
+  arr/.style={-{Stealth[length=2mm]}}]
+% ---- A. comparability
+\node[io] (a1) {Items: description, CPV code, unit, quantity $q$, price $p$};
+\node[proc, right=of a1] (a2) {Pack sizes: if a piece unit has pack size $s$ in the text,\\$p\gets p/s$, $q\gets q\,s$};
+\node[proc, right=of a2] (a3) {Groups by unit $\times$ CPV code; groups with $<10$ items merged up to category, then class};
+\node[proc, right=of a3] (a4) {Semantic split of groups with $\ge30$ items: $k$-means on TF-IDF, kept if silhouette $>0.15$};
+% ---- B. screening
+\node[proc, below=of a1.south, anchor=north, xshift=3mm] (b1) {Extremes $E_g$: outside\\$[Q_1-3\,\mathrm{IQR},\,Q_3+3\,\mathrm{IQR}]$};
+\node[proc, right=of b1] (b2) {Robust $z$ on $g\setminus E_g$\\(median, MAD, floor 0.15)};
+\node[proc, right=of b2] (b3) {DBSCAN noise $N_g$ in PCA of $(2\ell,\ \log q,\ \sin m,\ \cos m)$};
+\node[proc, right=of b3] (b4) {Screening features and flag\\$E\lor|z|\ge4\lor(N\land|z|\ge3)$};
+% ---- C. calibration and signals
+\node[outbox, below=of b1] (c1) {Likely data error\\if $i\in E_g$};
+\node[proc, right=of c1] (c2) {Monotone calibrator\\$\pi=f(\mathbf{x})$, 19 features};
+\node[outbox, right=of c2] (c3) {Risk $=100\,\pi$;\\high risk if $\pi\ge\tau$};
+\node[outbox, right=of c3] (c4) {Review queue: high risk $\cup$ likely data error; Shapley explanations if $\pi\ge\tau/2$};
+% ---- stage labels
+\node[stage] at ([xshift=-4mm]a1.west) {A. Comparability};
+\node[stage] at ([xshift=-1mm]b1.west) {B. Screening};
+\node[stage] at ([xshift=-1mm]c1.west) {C. Signals};
 % ---- edges
-\draw[arr] (in) -- (pk);
-\draw[arr] (pk) -- node[lbl, above]{yes} (conv);
-\draw[arr] (pk.south) -- ++(0,-3mm) -| node[lbl, pos=0.2, below]{no} (grp.south);
-\draw[arr] (conv) -- (grp);
-\draw[arr] (grp) -- (sm);
-\draw[arr] (sm) -- node[lbl, right]{yes} (up);
-\draw[arr] (sm.east) -- ++(3mm,0) |- node[lbl, pos=0.3, right]{no} (up.east);
-\draw[arr] (up) -- (big);
-\draw[arr] (big) -- node[lbl, above]{yes} (spl);
-\draw[arr] (big.south) -- ++(0,-4mm) -| node[lbl, pos=0.15, below]{no} (ext.north east);
-\draw[arr] (spl) -- (ext);
-\draw[arr] (ext) -- (z); \draw[arr] (z) -- (db); \draw[arr] (db) -- (r);
-\draw[arr] (r) -- (cal);
-\draw[arr] (cal) -- (risk);
-\draw[arr] (ext.south) -- ++(0,-3mm) -| (err.north);
-\draw[arr] (cal.south) -- ++(0,-2mm) -| (shap.south);
-\draw[arr] (risk) -- (queue);
-\draw[arr] (err.south) |- (queue.west);
-% ---- lanes
-\begin{scope}[on background layer]
-\node[lane, fit=(in)(pk)(conv)(grp)(sm)(up)(big)(spl), label={[font=\scriptsize\itshape, anchor=north west]north west:A. Comparability}] {};
-\node[lane, fit=(ext)(z)(db)(r), label={[font=\scriptsize\itshape, anchor=north west]north west:B. Screening in each group with $|g|\ge10$}] {};
-\node[lane, fit=(shap)(err)(risk)(cal)(queue), label={[font=\scriptsize\itshape, anchor=north west]north west:C. Calibration and signals}] {};
-\end{scope}
+\draw[arr] (a1) -- (a2); \draw[arr] (a2) -- (a3); \draw[arr] (a3) -- (a4);
+\draw[arr] (a4.south) -- ++(0,-4.5mm) -| (b1.north);
+\draw[arr] (b1) -- (b2); \draw[arr] (b2) -- (b3); \draw[arr] (b3) -- (b4);
+\draw[arr] (b1) -- (c1);
+\draw[arr] (b4.south) -- ++(0,-4.5mm) -| (c2.north);
+\draw[arr] (c2) -- (c3); \draw[arr] (c3) -- (c4);
+\draw[arr] (c1.south) -- ++(0,-4mm) -| (c4.south);
 \end{tikzpicture}}
-\caption{The two-stage method. A: records are made comparable (pack sizes, hierarchical CPV $\times$ unit
-groups, semantic split). B: each group is screened with robust rules; $\ell=\log p$, $m$ the month. C: a
-monotone calibrator turns screening features into a risk; extremes are additionally reported as likely
-data errors; candidates are explained with Shapley values.}
+\caption{The two-stage method. A: item records are made comparable. B: each group with at least ten items
+is screened with robust rules ($\ell=\log p$, $m$ the month). C: a monotone calibrator turns the screening
+features into a risk; extremes are reported in addition as likely data errors, independently of the
+calibrator; both signals form the review queue.}
 \label{fig:pipeline}
 \end{figure*}
 
