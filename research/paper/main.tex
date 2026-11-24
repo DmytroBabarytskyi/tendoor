@@ -24,7 +24,8 @@
 \usepackage[hidelinks,breaklinks]{hyperref}
 
 \graphicspath{{figs/}}
-\newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:~#1}}
+% \detokenize: підкреслення та інші спецсимволи в DOI друкуються як є
+\newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:~\detokenize{#1}}}
 % незаповнені місця — видно в PDF, щоб нічого не пропустити перед подачею
 \newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
 
@@ -209,7 +210,7 @@ groups large enough to be analysed.
   dec/.style={draw, diamond, aspect=2.2, align=center, inner sep=1pt, text width=17mm, fill=yellow!8},
   io/.style={draw, trapezium, trapezium left angle=75, trapezium right angle=105, align=center,
              minimum height=8mm, text width=24mm, fill=blue!5},
-  out/.style={draw, rounded corners, align=center, minimum height=9mm, text width=26mm, fill=green!8},
+  outbox/.style={draw, rounded corners, align=center, minimum height=9mm, text width=26mm, fill=green!8},
   lane/.style={draw, dashed, rounded corners, gray, inner sep=3mm},
   arr/.style={-{Stealth[length=2mm]}},
   lbl/.style={font=\scriptsize, inner sep=1pt}]
@@ -229,10 +230,10 @@ groups large enough to be analysed.
 \node[proc, right=of db] (r) {Screening flag $r=E\lor|z|\ge4\lor(N\land|z|\ge3)$};
 % ---- stage C: calibration and outputs
 \node[proc, below=9mm of r] (cal) {Monotone calibrator\\$\pi=f(\mathbf{x})$, 19 features};
-\node[out, left=of cal] (risk) {Risk $=100\,\pi$;\\high risk if $\pi\ge\tau$};
-\node[out, left=of risk] (err) {Likely data error\\if $i\in E_g$};
+\node[outbox, left=of cal] (risk) {Risk $=100\,\pi$;\\high risk if $\pi\ge\tau$};
+\node[outbox, left=of risk] (err) {Likely data error\\if $i\in E_g$};
 \node[proc, left=of err] (shap) {Shapley values (24 permutations) if $\pi\ge\tau/2$};
-\node[out, below=6mm of risk, text width=60mm] (queue) {Review queue: high risk $\cup$ likely data error};
+\node[outbox, below=6mm of risk, text width=60mm] (queue) {Review queue: high risk $\cup$ likely data error};
 % ---- edges
 \draw[arr] (in) -- (pk);
 \draw[arr] (pk) -- node[lbl, above]{yes} (conv);
