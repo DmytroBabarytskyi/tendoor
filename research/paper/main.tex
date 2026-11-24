@@ -30,27 +30,18 @@
 \newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:~\detokenize{#1}}}
 % незаповнені місця — видно в PDF, щоб нічого не пропустити перед подачею
 \newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
-% новий рядок у блоці авторів IEEEtran (стандартний прийом для розкладки авторів у кілька рядків)
-\makeatletter
-\newcommand{\linebreakand}{%
-  \end{@IEEEauthorhalign}
-  \hfill\mbox{}\par
-  \mbox{}\hfill\begin{@IEEEauthorhalign}}
-\makeatother
-
 \begin{document}
 
 \title{Explainable Detection of Anomalous Unit Prices in Public Procurement:
 Robust Screening and Learned Ranking on Annotated Verdicts}
 
-% перший автор окремим рядком по центру, співавтори — рядком нижче (порядок авторів зберігається)
 \author{\IEEEauthorblockN{Dmytro Babarytskyi}
 \IEEEauthorblockA{\textit{Kharkiv National University}\\
 \textit{of Radio Electronics}\\
 Kharkiv, Ukraine\\
 dmytro.babarytskyi@nure.ua\\
 ORCID: 0009-0009-3614-9601}
-\linebreakand
+\and
 \IEEEauthorblockN{Tetiana Bilova}
 \IEEEauthorblockA{\textit{Kharkiv National University}\\
 \textit{of Radio Electronics}\\
