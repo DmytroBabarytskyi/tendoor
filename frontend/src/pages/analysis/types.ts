@@ -70,6 +70,8 @@ export type AnomalyRow = {
   result_id: number
   item_id: number
   is_anomaly: boolean
+  // ймовірна помилка даних: екстремум першого етапу, позначається незалежно від ризику
+  is_extreme: boolean
   risk_score: number | null
   price_ratio: number | null
   description: string

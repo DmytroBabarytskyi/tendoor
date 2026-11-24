@@ -9,7 +9,7 @@ import Chart from '@/components/Chart'
 import { EmptyState, Kbd, Page, PageHeader, Panel } from '@/components/page'
 import Pagination from '@/components/Pagination'
 import StatTile from '@/components/StatTile'
-import { RequestStatusPill, RiskMeter } from '@/components/status'
+import { DataErrorPill, RequestStatusPill, RiskMeter } from '@/components/status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -27,6 +27,8 @@ import HomogeneityCard from './HomogeneityCard'
 import type { AnalysisRequest, AnomalyRow, Category } from './types'
 
 const PAGE = 20
+
+type Signal = 'flagged' | 'risk' | 'data_error'
 
 function Training() {
   return (
@@ -67,6 +69,7 @@ export default function ResultPage() {
   const [catQuery, setCatQuery] = useState('')
   const [points, setPoints] = useState<{ cat: number; data: Point[] } | null>(null)
   const [view, setView] = useState<'price' | 'pca'>('price')
+  const [signal, setSignal] = useState<Signal>('flagged')
   const [page, setPage] = useState(1)
   const [onlyGroup, setOnlyGroup] = useState(false)
   const [rows, setRows] = useState<{ key: string; total: number; items: AnomalyRow[] } | null>(null)
@@ -114,17 +117,17 @@ export default function ResultPage() {
     }
   }, [done, id, catId])
 
-  const rowsKey = `${page}|${onlyGroup ? catId : ''}|${reloadRows}`
+  const rowsKey = `${page}|${onlyGroup ? catId : ''}|${signal}|${reloadRows}`
   useEffect(() => {
     if (!done) return
     let alive = true
-    const params = new URLSearchParams({ limit: String(PAGE), offset: String((page - 1) * PAGE) })
+    const params = new URLSearchParams({ limit: String(PAGE), offset: String((page - 1) * PAGE), signal })
     if (onlyGroup && catId != null) params.set('category_id', String(catId))
     api<{ total: number; items: AnomalyRow[] }>(`/analysis/requests/${id}/anomalies?${params}`).then((r) => alive && setRows({ key: rowsKey, ...r }))
     return () => {
       alive = false
     }
-  }, [done, id, page, rowsKey, onlyGroup, catId])
+  }, [done, id, page, rowsKey, onlyGroup, catId, signal])
 
   const cat = cats.find((c) => c.id === catId)
   const option = useMemo(() => {
@@ -241,8 +244,8 @@ export default function ResultPage() {
         <>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <StatTile label="Проаналізовано позицій" value={m.n_analysed} hint={`з ${m.n_items.toLocaleString('uk-UA')} у вибірці`} />
-            <StatTile label="Аномальних цін" value={m.n_anomalies} hint="позначено для перевірки" />
-            <StatTile label="Частка аномалій" value={m.anomaly_share} format={(v) => pct(v, 1)} hint="від проаналізованих" />
+            <StatTile label="Високий ризик" value={m.n_anomalies} hint={`${pct(m.anomaly_share, 1)} проаналізованих`} />
+            <StatTile label="Ймовірні помилки даних" value={m.n_extreme} hint="ціна далеко поза межами групи" />
             <StatTile label="Однорідних груп" value={m.n_groups} hint={`розрахунок ${m.seconds.toFixed(0)} с`} />
           </div>
 
@@ -302,9 +305,25 @@ export default function ResultPage() {
 
           <Panel
             className="mt-4"
-            title="Аномальні цінові пропозиції"
-            description="Від найвищого ризику. Натисніть рядок, щоб розглянути позицію й винести вердикт."
+            title="Позиції для перевірки"
+            description="Два сигнали: високий ризик і ймовірна помилка даних (одиниця, фасовка, сума лоту замість ціни). Натисніть рядок, щоб розглянути позицію й винести вердикт."
             actions={
+              <div className="flex flex-wrap items-center gap-4">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                value={signal}
+                onValueChange={(v) => {
+                  if (!v) return
+                  setSignal(v as Signal)
+                  setPage(1)
+                }}
+              >
+                <ToggleGroupItem value="flagged">Усі</ToggleGroupItem>
+                <ToggleGroupItem value="risk">Високий ризик</ToggleGroupItem>
+                <ToggleGroupItem value="data_error">Помилки даних</ToggleGroupItem>
+              </ToggleGroup>
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <Switch
                   checked={onlyGroup}
@@ -315,6 +334,7 @@ export default function ResultPage() {
                 />
                 лише обрана група
               </label>
+              </div>
             }
             bodyClassName="p-0"
           >
@@ -338,7 +358,10 @@ export default function ResultPage() {
                       onClick={() => setOpened(r.item_id)}
                     >
                       <TableCell className="pl-5">
-                        <RiskMeter risk={r.risk_score} />
+                        <div className="flex flex-col items-start gap-1">
+                          <RiskMeter risk={r.risk_score} />
+                          {r.is_extreme && <DataErrorPill />}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap tabular">
                         {r.pack_size ? (

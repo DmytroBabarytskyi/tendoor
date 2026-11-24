@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { FileWarning, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { REQUEST_STATUS, riskLevel, type RequestStatus, type Tone } from './status-meta'
 
@@ -60,6 +60,15 @@ export function RiskMeter({ risk }: { risk: number | null }) {
         <div className={cn('h-full rounded-full', bar)} style={{ width: `${l.r}%` }} />
       </div>
     </div>
+  )
+}
+
+/** Другий сигнал: ціна поза межами групи настільки, що це швидше помилка даних (одиниця, фасовка, сума лоту). */
+export function DataErrorPill() {
+  return (
+    <Pill tone="warning" icon={FileWarning}>
+      ймовірна помилка даних
+    </Pill>
   )
 }
 

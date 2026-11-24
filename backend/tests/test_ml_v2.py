@@ -164,3 +164,21 @@ def test_default_run_explains_suspicious_items():
     flagged = res.items[res.items["is_anomaly"]]
     assert len(flagged) and flagged["contributions"].map(lambda c: isinstance(c, list)).all()
     assert res.metrics["importance"] and res.metrics["importance"][0]["label"]
+
+
+def test_explain_reports_data_error_even_without_high_risk():
+    """Екстремум першого етапу пояснюється як ймовірна помилка даних, навіть коли ризик низький."""
+    r = {
+        "price_ratio": 950.0,
+        "median_price": 40.0,
+        "base_unit_code": "KGM",
+        "unit_price_base": 38000.0,
+        "is_extreme": True,
+        "robust_z": 40.0,
+        "is_noise": False,
+        "is_anomaly": False,
+    }
+    text = explain(r)
+    assert "екстремальне значення" in text and "Ймовірна помилка даних" in text
+    normal = {**r, "is_extreme": False, "price_ratio": 1.1, "robust_z": 0.3}
+    assert "Ймовірна помилка даних" not in explain(normal)

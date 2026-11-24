@@ -5,7 +5,7 @@ import { api } from '@/api/client'
 import { useAuth } from '@/auth/context'
 import Contributions, { type Contribution } from '@/components/Contributions'
 import { Kbd } from '@/components/page'
-import { Pill, RiskMeter } from '@/components/status'
+import { DataErrorPill, Pill, RiskMeter } from '@/components/status'
 import { VERDICT_TONE } from '@/components/status-meta'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -48,6 +48,7 @@ type Card = {
     median_price: number | null
     explanation: string
     is_anomaly: boolean
+    is_extreme: boolean
     model_price: number | null
     model_unit: string | null
     contributions: Contribution[] | null
@@ -224,9 +225,17 @@ export default function ItemDrawer({
         ) : (
           <div className="space-y-7 p-6">
             {r && (
-              <div className={cn('rounded-xl border p-4', r.is_anomaly ? 'border-critical/30 bg-critical-soft/50' : 'bg-muted/40')}>
+              <div
+                className={cn(
+                  'rounded-xl border p-4',
+                  r.is_anomaly ? 'border-critical/30 bg-critical-soft/50' : r.is_extreme ? 'border-warning/30 bg-warning-soft/50' : 'bg-muted/40',
+                )}
+              >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium">{r.is_anomaly ? 'Позначено як аномальну ціну' : 'Звичайна ціна'}</div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    {r.is_anomaly ? 'Високий ризик аномальної ціни' : r.is_extreme ? 'Ризик невисокий' : 'Звичайна ціна'}
+                    {r.is_extreme && <DataErrorPill />}
+                  </div>
                   <RiskMeter risk={r.risk_score} />
                 </div>
                 <p className="mt-2 text-sm text-pretty">{r.explanation}</p>

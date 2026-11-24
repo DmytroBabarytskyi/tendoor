@@ -317,7 +317,7 @@ class FakeAnalysis:
     async def get_run(self, run_id):
         return None
 
-    async def anomalies(self, run_id, only, cat, limit, offset):
+    async def anomalies(self, run_id, only, cat, limit, offset, signal="flagged"):
         row = {
             "price_ratio": 4.0,
             "median_price": 20.0,

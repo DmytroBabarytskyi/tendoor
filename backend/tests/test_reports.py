@@ -58,8 +58,9 @@ def test_xlsx_report_structure():
     wb = load_workbook(BytesIO(build_xlsx(request, run, cats, [anomaly], "Аудитор (a@b.ua)")))
     assert wb.sheetnames == ["Зведення", "Аномалії", "Групи"]
     rows = list(wb["Аномалії"].iter_rows(values_only=True))
-    assert rows[1][:5] == (97.5, 180.0, "KGM", 18.0, 10.0)
-    assert rows[1][12:14] == ("підтверджено", "завищена ціна")
-    assert rows[1][14] == "Сила відхилення від медіани групи +42; Відмінність опису від решти групи +11"
-    assert rows[1][15].endswith("UA-2026-09-01-000001-a")
+    assert rows[0][1] == "Ймовірна помилка даних"
+    assert rows[1][:6] == (97.5, None, 180.0, "KGM", 18.0, 10.0)  # без екстремуму колонка порожня
+    assert rows[1][13:15] == ("підтверджено", "завищена ціна")
+    assert rows[1][15] == "Сила відхилення від медіани групи +42; Відмінність опису від решти групи +11"
+    assert rows[1][16].endswith("UA-2026-09-01-000001-a")
     assert wb["Зведення"]["B5"].value == "1531"

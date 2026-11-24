@@ -1,7 +1,7 @@
 """A2: виявлення аномальних цінових пропозицій — вибірка, запуск, результати, дані для візуалізації."""
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -178,11 +178,16 @@ async def anomalies(
     category_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
+    signal: Literal["flagged", "risk", "data_error"] = "flagged",
 ):
-    """A2.3: позиції з ризик-балом і поясненням, упорядковані за ризиком."""
+    """A2.3: позиції з ризик-балом і поясненням, упорядковані за ризиком.
+
+    Два сигнали: високий ризик (рішення калібратора) і ймовірна помилка даних (екстремум першого етапу,
+    позначається незалежно від калібратора). signal обирає, які з них показувати.
+    """
     run_id = await _run_of(request, request_id, user)
     rows, total = await _repo(request).anomalies(
-        run_id, only_anomalies, category_id, min(limit, 200), max(offset, 0)
+        run_id, only_anomalies, category_id, min(limit, 200), max(offset, 0), signal
     )
     for r in rows:
         r["explanation"] = explain(r)
@@ -217,4 +222,11 @@ def explain(r: dict) -> str:
         reasons.append(f"сильне відхилення (|z| = {abs(r['robust_z']):.1f})")
     if r["is_noise"]:
         reasons.append("нетипове поєднання ціни, обсягу й дати (шум DBSCAN)")
-    return text + (". Ознаки: " + "; ".join(reasons) + "." if reasons and r["is_anomaly"] else ".")
+    flagged = r["is_anomaly"] or r["is_extreme"]
+    text += ". Ознаки: " + "; ".join(reasons) + "." if reasons and flagged else "."
+    if r["is_extreme"]:
+        text += (
+            " Ймовірна помилка даних: перевірте одиницю виміру, фасовку та чи не вказано суму лоту"
+            " замість ціни за одиницю."
+        )
+    return text

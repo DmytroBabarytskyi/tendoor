@@ -61,7 +61,8 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
         ("Версія конвеєра", run.get("pipeline_version")),
         ("Проаналізовано позицій", m.get("n_analysed")),
         ("Однорідних груп", m.get("n_groups")),
-        ("Аномалій", m.get("n_anomalies")),
+        ("Аномалій (високий ризик)", m.get("n_anomalies")),
+        ("Ймовірних помилок даних", m.get("n_extreme")),
         ("Частка аномалій", m.get("anomaly_share")),
     ]
     for row in summary:
@@ -73,6 +74,7 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
         wb.create_sheet("Аномалії"),
         [
             "Ризик",
+            "Ймовірна помилка даних",
             "Ціна, грн",
             "Одиниця",
             "Медіана групи",
@@ -92,6 +94,7 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
         [
             [
                 float(a["risk_score"]) if a["risk_score"] is not None else None,
+                "так" if a.get("is_extreme") else "",
                 # ціна в одиниці моделі — та сама, що й у медіани групи (v2 перераховує фасовку)
                 float(a["model_price"] if a.get("model_price") is not None else a["unit_price_base"]),
                 a.get("model_unit") or a["base_unit_code"],
@@ -111,7 +114,7 @@ def build_xlsx(request: dict, run: dict, categories: list[dict], anomalies: list
             ]
             for a in anomalies
         ],
-        [8, 12, 9, 13, 12, 50, 12, 40, 11, 20, 24, 11, 18, 22, 48, 45],
+        [8, 10, 12, 9, 13, 12, 50, 12, 40, 11, 20, 24, 11, 18, 22, 48, 45],
     )
     _sheet(
         wb.create_sheet("Групи"),

@@ -117,6 +117,10 @@ async def test_full_cycle_with_cache(dbs):
     assert top["entity_name"] == "Тестовий замовник"
     cats = await repo.categories(done["model_run_id"])
     assert cats[0]["cpv_code"] == TEST_CPV and cats[0]["analysed"]
+    # два сигнали: черга «усі» = високий ризик ∪ ймовірні помилки даних
+    _, n_risk = await repo.anomalies(done["model_run_id"], True, None, 10, 0, "risk")
+    errors, n_err = await repo.anomalies(done["model_run_id"], True, None, 10, 0, "data_error")
+    assert all(e["is_extreme"] for e in errors) and max(n_risk, n_err) <= total <= n_risk + n_err
 
     # той самий запит з тими самими даними й параметрами — миттєво з кешу, без навчання
     # і без повторного завантаження вибірки (однорідність береться з попереднього запиту)

@@ -322,11 +322,20 @@ class SqlAnalysisRepository:
     # ------------------------------------------------------------ перегляд результатів
 
     async def anomalies(
-        self, run_id: int, only_anomalies: bool, category_id: int | None, limit: int, offset: int
+        self,
+        run_id: int,
+        only_anomalies: bool,
+        category_id: int | None,
+        limit: int,
+        offset: int,
+        signal: str = "flagged",
     ) -> tuple[list[dict], int]:
+        """signal: flagged — високий ризик або ймовірна помилка даних; risk — лише високий ризик;
+        data_error — лише ймовірні помилки даних (екстремуми першого етапу)."""
+        flag = {"risk": "is_anomaly", "data_error": "is_extreme"}.get(signal, "(is_anomaly OR is_extreme)")
         where = (
             "model_run_id = :run"
-            + (" AND is_anomaly" if only_anomalies else "")
+            + (f" AND {flag}" if only_anomalies else "")
             + (" AND category_id = :cat" if category_id else "")
         )
         params = {"run": run_id, "cat": category_id, "limit": limit, "offset": offset}
@@ -339,7 +348,7 @@ class SqlAnalysisRepository:
                     await s.execute(
                         text(
                             f"""SELECT * FROM v_anomaly_queue WHERE {where}
-                    ORDER BY is_anomaly DESC, risk_score DESC NULLS LAST, result_id
+                    ORDER BY is_anomaly DESC, is_extreme DESC, risk_score DESC NULLS LAST, result_id
                     LIMIT :limit OFFSET :offset"""
                         ),
                         params,
