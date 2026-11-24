@@ -1,38 +1,53 @@
-\documentclass[11pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{amsmath,amssymb}
+%% =====================================================================
+%%  Explainable Detection of Anomalous Unit Prices in Public Procurement:
+%%  Unsupervised Screening Calibrated on Review Verdicts
+%%
+%%  Compile:  pdflatex main  ->  pdflatex main     (no BibTeX needed)
+%%  arXiv:    upload arxiv_upload.zip (build_arxiv.py); IEEEtran.cls is on arXiv
+%% =====================================================================
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{multirow}
-\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{url}
 \usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
-\usepackage[numbers,sort&compress]{natbib}
-\usepackage[hidelinks]{hyperref}
 \usepackage{microtype}
+\usepackage[hidelinks,breaklinks]{hyperref}
 
-% незаповнені місця — видно в PDF, щоб нічого не пропустити перед подачею
 \graphicspath{{figs/}}
-\newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:#1}}
+\newcommand{\doi}[1]{\href{https://doi.org/#1}{doi:~#1}}
+% незаповнені місця — видно в PDF, щоб нічого не пропустити перед подачею
 \newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
 
-\title{\bfseries Explainable Detection of Anomalous Unit Prices in Public Procurement:
-Unsupervised Screening Calibrated on Review Verdicts}
-\author{%
-\begin{tabular}{c@{\hspace{3em}}c}
-Dmytro Babarytskyi\textsuperscript{*} & Tetiana Bilova \\
-\small\texttt{dmytro.babarytskyi@nure.ua} & \small\texttt{tetiana.bilova@nure.ua} \\
-\small ORCID 0009-0009-3614-9601 & \small ORCID 0000-0002-1085-7361
-\end{tabular}\\[8pt]
-\small Department of Computer Modeling and Intelligent Technologies\\
-\small Kharkiv National University of Radio Electronics, Kharkiv, Ukraine\\[4pt]
-\footnotesize\textsuperscript{*}Corresponding author}
-\date{}
-
 \begin{document}
+
+\title{Explainable Detection of Anomalous Unit Prices in Public Procurement:
+Unsupervised Screening Calibrated on Review Verdicts}
+
+\author{\IEEEauthorblockN{Dmytro Babarytskyi}
+\IEEEauthorblockA{\textit{Department of Computer Modeling and Intelligent Technologies}\\
+\textit{Kharkiv National University of Radio Electronics}\\
+Kharkiv, Ukraine\\
+dmytro.babarytskyi@nure.ua\\
+ORCID: 0009-0009-3614-9601}
+\and
+\IEEEauthorblockN{Tetiana Bilova}
+\IEEEauthorblockA{\textit{Department of Computer Modeling and Intelligent Technologies}\\
+\textit{Kharkiv National University of Radio Electronics}\\
+Kharkiv, Ukraine\\
+tetiana.bilova@nure.ua\\
+ORCID: 0000-0002-1085-7361}
+}
+
 \maketitle
 
 \begin{abstract}
@@ -59,15 +74,17 @@ point and are faithful: removing the top feature lowers the risk by 88 points, a
 The method is implemented in an open-source information system for auditors.
 \end{abstract}
 
-\noindent\textbf{Keywords:} public procurement; anomaly detection; price screening; explainable AI;
-Shapley values; human-in-the-loop; audit analytics; decision support
+\begin{IEEEkeywords}
+public procurement, anomaly detection, price screening, explainable AI, Shapley values,
+human-in-the-loop, audit analytics, decision support
+\end{IEEEkeywords}
 
 %==============================================================================
 \section{Introduction}
 
 Public procurement accounts for a large share of government spending, and its digitalisation has made
 transaction-level data openly available. The Ukrainian e-procurement system Prozorro alone registered
-207 thousand procurements worth UAH~463 billion in a single quarter of 2025~\citep{prozorro2026q4}; each
+207 thousand procurements worth UAH~463 billion in a single quarter of 2025~\cite{prozorro2026q4}; each
 procurement contains one or more items with a description, a classification code under the Common
 Procurement Vocabulary (CPV, national version DK~021), a unit of measure, a quantity and --- in contracts or
 in the expected value --- a price. This openness creates an opportunity for continuous, data-driven audit:
@@ -78,14 +95,14 @@ is bought per kilogram, per piece or per pack of unspecified weight, description
 single CPV code can cover goods whose prices differ by an order of magnitude. Data errors (a lot total
 entered as a unit price, grams confused with kilograms) are as frequent as genuine over-pricing and are
 equally relevant for an auditor, because they make published spending figures unreliable. Existing
-automated risk indicators --- including those used by the Ukrainian State Audit Service~\citep{minfin2024indicators}
-and the corruption risk indices of the procurement literature~\citep{fazekas2016objective,gti2024indicators}
+automated risk indicators --- including those used by the Ukrainian State Audit Service~\cite{minfin2024indicators}
+and the corruption risk indices of the procurement literature~\cite{fazekas2016objective,gti2024indicators}
 --- operate at the level of procedures (single bidding, short tender periods, repeated winners) and largely
 leave the price of what was bought unexamined.
 
 Machine learning for procurement oversight has mostly been supervised on procedure-level outcomes, such as
-sanctions, collusion cases or malfeasance reports~\citep{gallego2021preventing,huber2019screens,tas2024collusion},
-or unsupervised over contract-level features~\citep{niessen2020ocds,torresberru2021mining}. Two obstacles
+sanctions, collusion cases or malfeasance reports~\cite{gallego2021preventing,huber2019screens,tas2024collusion},
+or unsupervised over contract-level features~\cite{niessen2020ocds,torresberru2021mining}. Two obstacles
 recur: labels are scarce and costly, and a flag without an explanation is hard for an auditor to act on.
 
 This paper addresses item-level price screening as a decision-support problem with an auditor in the
@@ -112,47 +129,47 @@ calibrator.
 \section{Related work}
 
 \paragraph{Risk indicators in public procurement.} Corruption risk research has developed composite
-indices from procedure-level red flags~\citep{fazekas2016objective,gti2024indicators}. Their predictive
+indices from procedure-level red flags~\cite{fazekas2016objective,gti2024indicators}. Their predictive
 value is contested: red flags that are known in advance can be gamed, and the most scrutinised indicators
-may be the least informative~\citep{decarolis2022redflags}. Ukrainian practice combines official automatic
-indicators~\citep{minfin2024indicators} with civil-society tools such as DOZORRO, whose machine-learning
-component scores procedures for likely violations~\citep{tiu2018dozorro}. None of these targets the unit
+may be the least informative~\cite{decarolis2022redflags}. Ukrainian practice combines official automatic
+indicators~\cite{minfin2024indicators} with civil-society tools such as DOZORRO, whose machine-learning
+component scores procedures for likely violations~\cite{tiu2018dozorro}. None of these targets the unit
 price of the purchased item.
 
 \paragraph{Machine learning for procurement oversight.} Supervised models predict malfeasance from
-procedure and municipality characteristics~\citep{gallego2021preventing}, detect bid rigging from
-statistical screens of bid distributions~\citep{huber2019screens,tas2024collusion}, or predict corruption
-indices~\citep{rabuzin2019prediction}. Unsupervised approaches apply clustering and outlier detection to
-contract features~\citep{niessen2020ocds,torresberru2021mining,herreros2025purchase}. These works typically
+procedure and municipality characteristics~\cite{gallego2021preventing}, detect bid rigging from
+statistical screens of bid distributions~\cite{huber2019screens,tas2024collusion}, or predict corruption
+indices~\cite{rabuzin2019prediction}. Unsupervised approaches apply clustering and outlier detection to
+contract features~\cite{niessen2020ocds,torresberru2021mining,herreros2025purchase}. These works typically
 treat a contract or lot as the unit of analysis; item descriptions and units of measure, which determine
 whether two prices are comparable at all, receive little attention.
 
-\paragraph{Unsupervised anomaly detection.} Robust univariate rules (Tukey fences~\citep{tukey1977eda},
-the modified $z$-score~\citep{iglewicz1993outliers}) remain strong baselines for one-dimensional price data.
-Density- and isolation-based detectors --- DBSCAN~\citep{ester1996dbscan}, LOF~\citep{breunig2000lof},
-Isolation Forest~\citep{liu2008iforest}, ECOD~\citep{li2023ecod} --- extend screening to several attributes;
-see~\citep{chandola2009survey} for a survey. Their output is a score with no notion of what a domain
+\paragraph{Unsupervised anomaly detection.} Robust univariate rules (Tukey fences~\cite{tukey1977eda},
+the modified $z$-score~\cite{iglewicz1993outliers}) remain strong baselines for one-dimensional price data.
+Density- and isolation-based detectors --- DBSCAN~\cite{ester1996dbscan}, LOF~\cite{breunig2000lof},
+Isolation Forest~\cite{liu2008iforest}, ECOD~\cite{li2023ecod} --- extend screening to several attributes;
+see~\cite{chandola2009survey} for a survey. Their output is a score with no notion of what a domain
 expert would consider worth investigating.
 
-\paragraph{Explanations and the human in the loop.} Shapley values~\citep{shapley1953value} provide
+\paragraph{Explanations and the human in the loop.} Shapley values~\cite{shapley1953value} provide
 additive feature attributions with axiomatic guarantees; they are estimated by permutation sampling
-for arbitrary models~\citep{strumbelj2014explaining} or computed efficiently for trees~\citep{lundberg2017shap,lundberg2020trees}.
-Large language models have recently been used as annotators in text-classification tasks~\citep{gilardi2023chatgpt};
+for arbitrary models~\cite{strumbelj2014explaining} or computed efficiently for trees~\cite{lundberg2017shap,lundberg2020trees}.
+Large language models have recently been used as annotators in text-classification tasks~\cite{gilardi2023chatgpt};
 we use one under a written protocol and verify it against a human subsample. Anchoring on a provided
-reference~\citep{tversky1974judgment} is a known threat when annotators see model output, which motivates
+reference~\cite{tversky1974judgment} is a known threat when annotators see model output, which motivates
 our blind re-annotation.
 
 %==============================================================================
 \section{Data and problem setting}\label{sec:data}
 
-Prozorro publishes procurement records through an open API~\citep{prozorroapi} following the Open
-Contracting Data Standard~\citep{ocds}. We synchronise the change feed into a document store and normalise
+Prozorro publishes procurement records through an open API~\cite{prozorroapi} following the Open
+Contracting Data Standard~\cite{ocds}. We synchronise the change feed into a document store and normalise
 it into a relational schema of tenders, lots, items, contracts, procuring entities and suppliers. For every
 item we derive a unit price from, in order of preference, an item-level unit value, the contract, or the
 expected value, and we convert the unit of measure to a base unit (kilogram, litre, piece, \ldots) using
 UN/CEFACT codes.
 
-\begin{table}[h]
+\begin{table*}[t]
 \centering
 \caption{Data synchronised from Prozorro (change feed of 10--24 September 2026). The reference period is
 publication between 1 August and 30 September 2026.}
@@ -166,7 +183,7 @@ CPV division & Tenders & Items & Items with price and quantity & \ldots{} in ref
 03 Agricultural products & 7{,}850 & 21{,}266 & 6{,}511 & 6{,}507 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 Unit prices of CPV~15 items come from contracts (66\%), item-level unit values (25\%) and expected values
 (9\%). CPV~15 is used for annotation and calibrator training; CPV~03 is held out to test transfer.
 
@@ -179,7 +196,7 @@ groups large enough to be analysed.
 %==============================================================================
 \section{Method}\label{sec:method}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=4mm and 6mm, every node/.style={font=\small},
   box/.style={draw, rounded corners, align=center, minimum height=10mm, text width=27mm, fill=gray!6},
@@ -195,7 +212,7 @@ groups large enough to be analysed.
 \end{tikzpicture}
 \caption{The two-stage pipeline: comparability layer (top), screening and calibration (bottom).}
 \label{fig:pipeline}
-\end{figure}
+\end{figure*}
 
 Figure~\ref{fig:pipeline} outlines the method: a comparability layer, screening within comparable groups,
 calibration of the screening signals on review verdicts, and per-item explanations.
@@ -213,8 +230,8 @@ dissimilar goods.
 
 \paragraph{Semantic split.} A CPV code can still mix goods with very different prices (``dairy products''
 covers yoghurt and hard cheese). Groups with at least 30 items are split by description: lemmatised
-descriptions are vectorised with TF-IDF~\citep{salton1988weighting}, reduced with truncated SVD and
-clustered with $k$-means, choosing $k\le 8$ by the silhouette coefficient~\citep{rousseeuw1987silhouettes};
+descriptions are vectorised with TF-IDF~\cite{salton1988weighting}, reduced with truncated SVD and
+clustered with $k$-means, choosing $k\le 8$ by the silhouette coefficient~\cite{rousseeuw1987silhouettes};
 the split is kept only if the silhouette exceeds 0.15 and every subgroup has at least five items.
 
 \subsection{Unsupervised screening}
@@ -225,9 +242,9 @@ Within each group $g$ with log prices $\ell_i$:
 from the estimation of the group's centre and spread.
 \item \emph{Robust $z$-score}: $z_i=(\ell_i-\tilde\ell_g)/\max(1.4826\,\mathrm{MAD}_g,\,0.15)$, where the floor
 prevents ordinary market variation of about 15\% from being flagged in very homogeneous groups.
-\item \emph{Density outliers}: DBSCAN~\citep{ester1996dbscan} in the PCA projection~\citep{jolliffe2016pca}
+\item \emph{Density outliers}: DBSCAN~\cite{ester1996dbscan} in the PCA projection~\cite{jolliffe2016pca}
 of standardised $[2\ell, \log q, \sin m, \cos m]$ (price weighted twice, quantity, cyclically encoded month),
-with $\varepsilon$ chosen at the knee of the sorted $k$-distance curve~\citep{satopaa2011kneedle}.
+with $\varepsilon$ chosen at the knee of the sorted $k$-distance curve~\cite{satopaa2011kneedle}.
 \end{enumerate}
 An item is flagged if it is an extreme, or $|z_i|\ge4$, or it is a density outlier with $|z_i|\ge3$: a
 density outlier must be a \emph{price} outlier, not merely unusual in quantity or date.
@@ -235,7 +252,7 @@ density outlier must be a \emph{price} outlier, not merely unusual in quantity o
 \subsection{Calibration on review verdicts}
 
 Screening finds deviations but cannot know which deviations an auditor considers worth investigating.
-A gradient-boosting classifier~\citep{friedman2001gbm,ke2017lightgbm} (histogram-based, depth~3, 300
+A gradient-boosting classifier~\cite{friedman2001gbm,ke2017lightgbm} (histogram-based, depth~3, 300
 iterations, balanced class weights) maps 19 screening and context features to the probability that an
 auditor confirms the item: the signed and absolute robust $z$, the log ratio to the group median, extreme
 and density-outlier indicators, group size and spread, TF-IDF distance of the description to the group
@@ -264,7 +281,7 @@ $z$ drawn from unflagged items of the same selection,
 \begin{equation}
 \phi_j(x)=\sum_{S\subseteq F\setminus\{j\}}\frac{|S|!\,(d-|S|-1)!}{d!}\left[f(x_{S\cup\{j\}},z_{\bar S\setminus\{j\}})-f(x_S,z_{\bar S})\right],
 \end{equation}
-estimated by Monte Carlo over random feature permutations~\citep{strumbelj2014explaining} (24
+estimated by Monte Carlo over random feature permutations~\cite{strumbelj2014explaining} (24
 permutations per item in the system). Contributions are reported in risk points and labelled in
 the auditor's language (e.g.\ ``strength of deviation from the group median'', ``price resembles a
 per-pack price'').
@@ -276,8 +293,8 @@ per-pack price'').
 positives. We stratified the reference selection by the decision of the first system version (v1): the 50
 highest-risk flagged items (\emph{top}), the remaining 577 flagged items (\emph{mid}) and 14{,}823 unflagged
 analysed items (\emph{normal}); 50, 100 and 250 items were annotated respectively. Population metrics are
-estimated with Horvitz--Thompson weights $w_h=N_h/n_h$~\citep{horvitz1952sampling}; confidence intervals use a
-stratified bootstrap with 2{,}000 replicates~\citep{efron1993bootstrap}.
+estimated with Horvitz--Thompson weights $w_h=N_h/n_h$~\cite{horvitz1952sampling}; confidence intervals use a
+stratified bootstrap with 2{,}000 replicates~\cite{efron1993bootstrap}.
 
 \paragraph{Annotation protocol.} An item is \emph{confirmed} if an auditor should examine its unit price:
 a substantial deviation from comparable goods not explained by the description (as a guide, above
@@ -323,7 +340,7 @@ exact.
 \subsection{Annotation agreement and anchoring}\label{sec:res-labels}
 
 Of the 400 items, the blind annotation confirmed 54 and marked 9 as \emph{cannot judge}. Agreement between
-the sighted and the blind annotation is high (Cohen's~\citep{cohen1960kappa} $\kappa=0.82$ on the 376 items
+the sighted and the blind annotation is high (Cohen's~\cite{cohen1960kappa} $\kappa=0.82$ on the 376 items
 judged in both rounds; $\kappa=0.68$ including the \emph{cannot judge} class), but the disagreements are not
 symmetric. Among items flagged by v1, the sighted annotation confirmed 14 that the blind annotation did not,
 against 4 in the opposite direction; confirmation rates fell from 52\% to 42\% in the top stratum and from
@@ -340,7 +357,7 @@ human judgement, which supports the emphasis of Section~\ref{sec:method} on the 
 
 \subsection{Detection quality}
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Design-weighted quality on blind labels (reference selection, CPV 15). P, R, F1 at the method's
 own threshold or at the 4\% alert budget; AP is threshold-free.}
@@ -369,7 +386,7 @@ v2 screening without semantic split & 0.320 & 0.602 & 0.418 & 0.358 \\
 Hybrid: extremes always flagged + calibrator & 0.500 & 0.865 & 0.634 & 0.612 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 Table~\ref{tab:labels} summarises the results. Three findings stand out. First, comparability matters more
 than the choice of detector: removing CPV grouping or the semantic split lowers AP of the screening stage
@@ -396,7 +413,7 @@ consistent notion of relevance in the labels it is trained and evaluated on.
 
 \subsection{Synthetic errors and transfer to another category}
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Injected errors (3\% of items, three seeds; mean). Precision is a lower bound; R by type is
 recall for moderate, strong, unit-scale and lot-total errors. Calibrators are trained on CPV~15 labels and
@@ -427,16 +444,16 @@ applied without retraining; CPV~03 is held out.}
  & hybrid, same calibrator & \textbf{0.66} & 0.65 & 3.7\% & 0.39 & 0.74 & 0.93 & 0.92 \
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\linewidth]{fig_synthetic_recall}
+\includegraphics[width=0.85\textwidth]{fig_synthetic_recall}
 \caption{Recall by injected error type (mean of three seeds). The blind-label calibrator misses part of
 the unit-scale errors; forcing extremes to be flagged (hybrid) restores it.}
 \label{fig:synthetic}
-\end{figure}
+\end{figure*}
 
 Table~\ref{tab:synthetic} and Figure~\ref{fig:synthetic} report the injected-error benchmark. Unit-scale errors and lot totals are
 found by all pipeline variants and by simple rules; moderate deviations ($\times2$--3) are found by none
@@ -455,7 +472,7 @@ annotator-relevant cases it was trained on.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.75\linewidth]{fig_importance}
+\includegraphics[width=\columnwidth]{fig_importance}
 \caption{Global feature importance of the default calibrator: mean absolute Shapley value over 120
 flagged items, in risk points (features with less than 0.1 point omitted).}
 \label{fig:importance}
@@ -465,7 +482,7 @@ We explained 120 randomly chosen flagged items of the reference selection (292 f
 monotone calibrator) against 100 background items and compared the system's estimator (24 permutations)
 with a reference estimate from 2{,}000 permutations (Table~\ref{tab:explain}).
 
-\begin{table}[h]
+\begin{table*}[t]
 \centering
 \caption{Quality of Monte-Carlo Shapley explanations (120 flagged items, 10 seeds).}
 \label{tab:explain}
@@ -483,7 +500,7 @@ Risk drop when replacing the top-1 / top-2 / top-3 features by background values
 Risk drop when replacing 1 / 2 / 3 random features & 9.7 / 13.0 / 17.1 \
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 The error of the 24-permutation estimate is about one risk point on a 0--100 scale and the attribution
 magnitudes correlate strongly with the reference ($\rho=0.95$). The three features shown first agree with
@@ -549,7 +566,7 @@ professional auditors collected blind, extend the evaluation to more categories 
 auditors use the explanations in their decisions.
 
 \section*{Data and code availability}
-Prozorro data are public and available through the OpenProcurement API~\citep{prozorroapi}. The
+Prozorro data are public and available through the OpenProcurement API~\cite{prozorroapi}. The
 annotation cards, all three annotation variants, the experiment code and result tables are available at
 \url{https://github.com/DmytroBabarytskyi/tendoor} (directory \texttt{research}; code under AGPL-3.0,
 annotation data under CC BY 4.0).
@@ -572,43 +589,43 @@ for the publication's content.
 \begin{thebibliography}{37}
 
 \bibitem{prozorro2026q4}
-{Prozorro}, ``In Q4 2025, 207 thousand procurements worth {UAH} 463 billion were announced in Prozorro'', 2026. \url{https://prozorro.gov.ua/uk/news/u-4-kvartali-2025-roku-v-prozorro-ogolosyly-207-tys-zakupivel-na-463-mlrd-grn}. In Ukrainian. Accessed 24 November 2026.
+{Prozorro}, ``In Q4 2025, 207 thousand procurements worth {UAH} 463 billion were announced in Prozorro,'' 2026. [Online]. Available: \url{https://prozorro.gov.ua/uk/news/u-4-kvartali-2025-roku-v-prozorro-ogolosyly-207-tys-zakupivel-na-463-mlrd-grn}. In Ukrainian. Accessed 24 November 2026.
 
 \bibitem{minfin2024indicators}
-{Ministry of Finance of Ukraine}, ``Methodology for determining automatic risk indicators, their list and application procedure (Order No. 476 of 27.09.2024)'', 2024. \url{https://zakon.rada.gov.ua/laws/show/z1474-24}. In Ukrainian. Accessed 24 November 2026.
+{Ministry of Finance of Ukraine}, ``Methodology for determining automatic risk indicators, their list and application procedure (Order No. 476 of 27.09.2024),'' 2024. [Online]. Available: \url{https://zakon.rada.gov.ua/laws/show/z1474-24}. In Ukrainian. Accessed 24 November 2026.
 
 \bibitem{fazekas2016objective}
-M. Fazekas, I. J. T{\'o}th and L. P. King, ``An Objective Corruption Risk Index Using Public Procurement Data,'' \emph{European Journal on Criminal Policy and Research}, vol.~22(3), 369--397, 2016. \doi{10.1007/s10610-016-9308-z}
+M. Fazekas, I. J. T{\'o}th, and L. P. King, ``An Objective Corruption Risk Index Using Public Procurement Data,'' \emph{European Journal on Criminal Policy and Research}, vol.~22, no.~3, pp.~369--397, 2016. \doi{10.1007/s10610-016-9308-z}
 
 \bibitem{gti2024indicators}
-{Government Transparency Institute}, ``Corruption Risk Indicators in Public Procurement: An extended opentender.eu framework'', 2024. \url{https://imonitor.govtransparency.eu/2024/03/05/corruption-risk-indicators-in-public-procurement-an-extended-opentender-eu-framework/}. Accessed 24 November 2026.
+{Government Transparency Institute}, ``Corruption Risk Indicators in Public Procurement: An extended opentender.eu framework,'' 2024. [Online]. Available: \url{https://imonitor.govtransparency.eu/2024/03/05/corruption-risk-indicators-in-public-procurement-an-extended-opentender-eu-framework/}. Accessed 24 November 2026.
 
 \bibitem{gallego2021preventing}
-J. Gallego, G. Rivero and J. Mart{\'i}nez, ``Preventing rather than punishing: An early warning model of malfeasance in public procurement,'' \emph{International Journal of Forecasting}, vol.~37(1), 360--377, 2021. \doi{10.1016/j.ijforecast.2020.06.006}
+J. Gallego, G. Rivero, and J. Mart{\'i}nez, ``Preventing rather than punishing: An early warning model of malfeasance in public procurement,'' \emph{International Journal of Forecasting}, vol.~37, no.~1, pp.~360--377, 2021. \doi{10.1016/j.ijforecast.2020.06.006}
 
 \bibitem{huber2019screens}
-M. Huber and D. Imhof, ``Machine learning with screens for detecting bid-rigging cartels,'' \emph{International Journal of Industrial Organization}, vol.~65, 277--301, 2019. \doi{10.1016/j.ijindorg.2019.04.002}
+M. Huber and D. Imhof, ``Machine learning with screens for detecting bid-rigging cartels,'' \emph{International Journal of Industrial Organization}, vol.~65, pp.~277--301, 2019. \doi{10.1016/j.ijindorg.2019.04.002}
 
 \bibitem{tas2024collusion}
-B. K. O. Tas, ``A machine learning approach to detect collusion in public procurement with limited information,'' \emph{Journal of Computational Social Science}, vol.~7(2), 1913--1935, 2024. \doi{10.1007/s42001-024-00293-4}
+B. K. O. Tas, ``A machine learning approach to detect collusion in public procurement with limited information,'' \emph{Journal of Computational Social Science}, vol.~7, no.~2, pp.~1913--1935, 2024. \doi{10.1007/s42001-024-00293-4}
 
 \bibitem{niessen2020ocds}
-M. E. K. Niessen, J. M. Paciello and J. I. P. Fernandez, ``Anomaly Detection in Public Procurements using the Open Contracting Data Standard,'' in \emph{2020 Seventh International Conference on eDemocracy \& eGovernment (ICEDEG)}, pp.~127--134, 2020. \doi{10.1109/ICEDEG48599.2020.9096674}
+M. E. K. Niessen, J. M. Paciello, and J. I. P. Fernandez, ``Anomaly Detection in Public Procurements using the Open Contracting Data Standard,'' in \emph{2020 Seventh International Conference on eDemocracy \& eGovernment (ICEDEG)}, pp.~127--134, 2020. \doi{10.1109/ICEDEG48599.2020.9096674}
 
 \bibitem{torresberru2021mining}
-Y. Torres-Berru and V. F. L{\'o}pez Batista, ``Data Mining to Identify Anomalies in Public Procurement Rating Parameters,'' \emph{Electronics}, vol.~10(22), 2873, 2021. \doi{10.3390/electronics10222873}
+Y. Torres-Berru and V. F. L{\'o}pez Batista, ``Data Mining to Identify Anomalies in Public Procurement Rating Parameters,'' \emph{Electronics}, vol.~10, no.~22, Art.~no.~2873, 2021. \doi{10.3390/electronics10222873}
 
 \bibitem{decarolis2022redflags}
-F. Decarolis and C. Giorgiantonio, ``Corruption red flags in public procurement: new evidence from {I}talian calls for tenders,'' \emph{EPJ Data Science}, vol.~11, 16, 2022. \doi{10.1140/epjds/s13688-022-00325-x}
+F. Decarolis and C. Giorgiantonio, ``Corruption red flags in public procurement: new evidence from {I}talian calls for tenders,'' \emph{EPJ Data Science}, vol.~11, Art.~no.~16, 2022. \doi{10.1140/epjds/s13688-022-00325-x}
 
 \bibitem{tiu2018dozorro}
-{Transparency International Ukraine}, ``{DOZORRO} Artificial Intelligence to Find Violations in {ProZorro}: How It Works'', 2018. \url{https://ti-ukraine.org/en/news/dozorro-artificial-intelligence-to-find-violations-in-prozorro-how-it-works/}. Accessed 24 November 2026.
+{Transparency International Ukraine}, ``{DOZORRO} Artificial Intelligence to Find Violations in {ProZorro}: How It Works,'' 2018. [Online]. Available: \url{https://ti-ukraine.org/en/news/dozorro-artificial-intelligence-to-find-violations-in-prozorro-how-it-works/}. Accessed 24 November 2026.
 
 \bibitem{rabuzin2019prediction}
 K. Rabuzin and N. Modru{\v s}an, ``Prediction of Public Procurement Corruption Indices using Machine Learning Methods,'' in \emph{Proceedings of the 11th International Joint Conference on Knowledge Discovery, Knowledge Engineering and Knowledge Management (KMIS)}, pp.~333--340, 2019. \doi{10.5220/0008353603330340}
 
 \bibitem{herreros2025purchase}
-A. Herreros-Mart{\'i}nez, R. Magdalena-Benedicto, J. Vila-Franc{\'e}s and A. J. Serrano-L{\'o}pez, ``Applied Machine Learning to Anomaly Detection in Enterprise Purchase Processes: A Hybrid Approach Using Clustering and Isolation Forest,'' \emph{Information}, vol.~16(3), 177, 2025. \doi{10.3390/info16030177}
+A. Herreros-Mart{\'i}nez, R. Magdalena-Benedicto, J. Vila-Franc{\'e}s, and A. J. Serrano-L{\'o}pez, ``Applied Machine Learning to Anomaly Detection in Enterprise Purchase Processes: A Hybrid Approach Using Clustering and Isolation Forest,'' \emph{Information}, vol.~16, no.~3, Art.~no.~177, 2025. \doi{10.3390/info16030177}
 
 \bibitem{tukey1977eda}
 J. W. Tukey, \emph{Exploratory Data Analysis}. Reading, MA: Addison-Wesley, 1977.
@@ -617,70 +634,70 @@ J. W. Tukey, \emph{Exploratory Data Analysis}. Reading, MA: Addison-Wesley, 1977
 B. Iglewicz and D. C. Hoaglin, \emph{How to Detect and Handle Outliers}. Milwaukee: ASQC Quality Press, 1993.
 
 \bibitem{ester1996dbscan}
-M. Ester, H. Kriegel, J. Sander and X. Xu, ``A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise,'' in \emph{Proceedings of the Second International Conference on Knowledge Discovery and Data Mining (KDD-96)}, pp.~226--231, 1996.
+M. Ester, H. Kriegel, J. Sander, and X. Xu, ``A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise,'' in \emph{Proceedings of the Second International Conference on Knowledge Discovery and Data Mining (KDD-96)}, pp.~226--231, 1996.
 
 \bibitem{breunig2000lof}
-M. M. Breunig, H. Kriegel, R. T. Ng and J. Sander, ``{LOF}: Identifying Density-Based Local Outliers,'' in \emph{Proceedings of the 2000 ACM SIGMOD International Conference on Management of Data}, pp.~93--104, 2000. \doi{10.1145/342009.335388}
+M. M. Breunig, H. Kriegel, R. T. Ng, and J. Sander, ``{LOF}: Identifying Density-Based Local Outliers,'' in \emph{Proceedings of the 2000 ACM SIGMOD International Conference on Management of Data}, pp.~93--104, 2000. \doi{10.1145/342009.335388}
 
 \bibitem{liu2008iforest}
-F. T. Liu, K. M. Ting and Z. Zhou, ``Isolation Forest,'' in \emph{2008 Eighth IEEE International Conference on Data Mining}, pp.~413--422, 2008. \doi{10.1109/ICDM.2008.17}
+F. T. Liu, K. M. Ting, and Z. Zhou, ``Isolation Forest,'' in \emph{2008 Eighth IEEE International Conference on Data Mining}, pp.~413--422, 2008. \doi{10.1109/ICDM.2008.17}
 
 \bibitem{li2023ecod}
-Z. Li, Y. Zhao, X. Hu, N. Botta, C. Ionescu and G. H. Chen, ``{ECOD}: Unsupervised Outlier Detection Using Empirical Cumulative Distribution Functions,'' \emph{IEEE Transactions on Knowledge and Data Engineering}, vol.~35(12), 12181--12193, 2023. \doi{10.1109/TKDE.2022.3159580}
+Z. Li, Y. Zhao, X. Hu, N. Botta, C. Ionescu, and G. H. Chen, ``{ECOD}: Unsupervised Outlier Detection Using Empirical Cumulative Distribution Functions,'' \emph{IEEE Transactions on Knowledge and Data Engineering}, vol.~35, no.~12, pp.~12181--12193, 2023. \doi{10.1109/TKDE.2022.3159580}
 
 \bibitem{chandola2009survey}
-V. Chandola, A. Banerjee and V. Kumar, ``Anomaly Detection: A Survey,'' \emph{ACM Computing Surveys}, vol.~41(3), 15, 2009. \doi{10.1145/1541880.1541882}
+V. Chandola, A. Banerjee, and V. Kumar, ``Anomaly Detection: A Survey,'' \emph{ACM Computing Surveys}, vol.~41, no.~3, Art.~no.~15, 2009. \doi{10.1145/1541880.1541882}
 
 \bibitem{shapley1953value}
 L. S. Shapley, ``A Value for n-Person Games,'' in \emph{Contributions to the Theory of Games, Vol. II}, pp.~307--317, 1953.
 
 \bibitem{strumbelj2014explaining}
-E. {\v S}trumbelj and I. Kononenko, ``Explaining prediction models and individual predictions with feature contributions,'' \emph{Knowledge and Information Systems}, vol.~41(3), 647--665, 2014. \doi{10.1007/s10115-013-0679-x}
+E. {\v S}trumbelj and I. Kononenko, ``Explaining prediction models and individual predictions with feature contributions,'' \emph{Knowledge and Information Systems}, vol.~41, no.~3, pp.~647--665, 2014. \doi{10.1007/s10115-013-0679-x}
 
 \bibitem{lundberg2017shap}
 S. M. Lundberg and S. Lee, ``A Unified Approach to Interpreting Model Predictions,'' in \emph{Advances in Neural Information Processing Systems 30}, pp.~4765--4774, 2017.
 
 \bibitem{lundberg2020trees}
-S. M. Lundberg, G. Erion, H. Chen et al., ``From local explanations to global understanding with explainable {AI} for trees,'' \emph{Nature Machine Intelligence}, vol.~2(1), 56--67, 2020. \doi{10.1038/s42256-019-0138-9}
+S. M. Lundberg et al., ``From local explanations to global understanding with explainable {AI} for trees,'' \emph{Nature Machine Intelligence}, vol.~2, no.~1, pp.~56--67, 2020. \doi{10.1038/s42256-019-0138-9}
 
 \bibitem{gilardi2023chatgpt}
-F. Gilardi, M. Alizadeh and M. Kubli, ``{ChatGPT} outperforms crowd workers for text-annotation tasks,'' \emph{Proceedings of the National Academy of Sciences}, vol.~120(30), e2305016120, 2023. \doi{10.1073/pnas.2305016120}
+F. Gilardi, M. Alizadeh, and M. Kubli, ``{ChatGPT} outperforms crowd workers for text-annotation tasks,'' \emph{Proceedings of the National Academy of Sciences}, vol.~120, no.~30, Art.~no.~e2305016120, 2023. \doi{10.1073/pnas.2305016120}
 
 \bibitem{tversky1974judgment}
-A. Tversky and D. Kahneman, ``Judgment under Uncertainty: Heuristics and Biases,'' \emph{Science}, vol.~185(4157), 1124--1131, 1974. \doi{10.1126/science.185.4157.1124}
+A. Tversky and D. Kahneman, ``Judgment under Uncertainty: Heuristics and Biases,'' \emph{Science}, vol.~185, no.~4157, pp.~1124--1131, 1974. \doi{10.1126/science.185.4157.1124}
 
 \bibitem{prozorroapi}
-{Prozorro}, ``OpenProcurement {API} Documentation''. \url{https://prozorro-api-docs.readthedocs.io/}. Accessed 24 November 2026.
+{Prozorro}, ``OpenProcurement {API} Documentation,'' [Online]. Available: \url{https://prozorro-api-docs.readthedocs.io/}. Accessed 24 November 2026.
 
 \bibitem{ocds}
-{Open Contracting Partnership}, ``Open Contracting Data Standard: Documentation''. \url{https://standard.open-contracting.org/latest/en/}. Accessed 24 November 2026.
+{Open Contracting Partnership}, ``Open Contracting Data Standard: Documentation,'' [Online]. Available: \url{https://standard.open-contracting.org/latest/en/}. Accessed 24 November 2026.
 
 \bibitem{salton1988weighting}
-G. Salton and C. Buckley, ``Term-weighting approaches in automatic text retrieval,'' \emph{Information Processing \& Management}, vol.~24(5), 513--523, 1988. \doi{10.1016/0306-4573(88)90021-0}
+G. Salton and C. Buckley, ``Term-weighting approaches in automatic text retrieval,'' \emph{Information Processing \& Management}, vol.~24, no.~5, pp.~513--523, 1988. \doi{10.1016/0306-4573(88)90021-0}
 
 \bibitem{rousseeuw1987silhouettes}
-P. J. Rousseeuw, ``Silhouettes: A graphical aid to the interpretation and validation of cluster analysis,'' \emph{Journal of Computational and Applied Mathematics}, vol.~20, 53--65, 1987. \doi{10.1016/0377-0427(87)90125-7}
+P. J. Rousseeuw, ``Silhouettes: A graphical aid to the interpretation and validation of cluster analysis,'' \emph{Journal of Computational and Applied Mathematics}, vol.~20, pp.~53--65, 1987. \doi{10.1016/0377-0427(87)90125-7}
 
 \bibitem{jolliffe2016pca}
-I. T. Jolliffe and J. Cadima, ``Principal component analysis: a review and recent developments,'' \emph{Philosophical Transactions of the Royal Society A}, vol.~374(2065), 20150202, 2016. \doi{10.1098/rsta.2015.0202}
+I. T. Jolliffe and J. Cadima, ``Principal component analysis: a review and recent developments,'' \emph{Philosophical Transactions of the Royal Society A}, vol.~374, no.~2065, Art.~no.~20150202, 2016. \doi{10.1098/rsta.2015.0202}
 
 \bibitem{satopaa2011kneedle}
-V. Satop{\"a}{\"a}, J. Albrecht, D. Irwin and B. Raghavan, ``Finding a ``Kneedle'' in a Haystack: Detecting Knee Points in System Behavior,'' in \emph{2011 31st International Conference on Distributed Computing Systems Workshops}, pp.~166--171, 2011. \doi{10.1109/ICDCSW.2011.20}
+V. Satop{\"a}{\"a}, J. Albrecht, D. Irwin, and B. Raghavan, ``Finding a ``Kneedle'' in a Haystack: Detecting Knee Points in System Behavior,'' in \emph{2011 31st International Conference on Distributed Computing Systems Workshops}, pp.~166--171, 2011. \doi{10.1109/ICDCSW.2011.20}
 
 \bibitem{friedman2001gbm}
-J. H. Friedman, ``Greedy function approximation: A gradient boosting machine,'' \emph{The Annals of Statistics}, vol.~29(5), 1189--1232, 2001. \doi{10.1214/aos/1013203451}
+J. H. Friedman, ``Greedy function approximation: A gradient boosting machine,'' \emph{The Annals of Statistics}, vol.~29, no.~5, pp.~1189--1232, 2001. \doi{10.1214/aos/1013203451}
 
 \bibitem{ke2017lightgbm}
-G. Ke, Q. Meng, T. Finley et al., ``{LightGBM}: A Highly Efficient Gradient Boosting Decision Tree,'' in \emph{Advances in Neural Information Processing Systems 30}, pp.~3146--3154, 2017.
+G. Ke et al., ``{LightGBM}: A Highly Efficient Gradient Boosting Decision Tree,'' in \emph{Advances in Neural Information Processing Systems 30}, pp.~3146--3154, 2017.
 
 \bibitem{horvitz1952sampling}
-D. G. Horvitz and D. J. Thompson, ``A Generalization of Sampling Without Replacement from a Finite Universe,'' \emph{Journal of the American Statistical Association}, vol.~47(260), 663--685, 1952. \doi{10.1080/01621459.1952.10483446}
+D. G. Horvitz and D. J. Thompson, ``A Generalization of Sampling Without Replacement from a Finite Universe,'' \emph{Journal of the American Statistical Association}, vol.~47, no.~260, pp.~663--685, 1952. \doi{10.1080/01621459.1952.10483446}
 
 \bibitem{efron1993bootstrap}
 B. Efron and R. J. Tibshirani, \emph{An Introduction to the Bootstrap}. New York: Chapman \& Hall, 1993.
 
 \bibitem{cohen1960kappa}
-J. Cohen, ``A Coefficient of Agreement for Nominal Scales,'' \emph{Educational and Psychological Measurement}, vol.~20(1), 37--46, 1960. \doi{10.1177/001316446002000104}
+J. Cohen, ``A Coefficient of Agreement for Nominal Scales,'' \emph{Educational and Psychological Measurement}, vol.~20, no.~1, pp.~37--46, 1960. \doi{10.1177/001316446002000104}
 
 \end{thebibliography}
 % --- end bibliography ---

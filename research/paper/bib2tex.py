@@ -36,32 +36,36 @@ def authors(s: str) -> str:
             fmt.append(f"{initials} {last}".strip())
         else:
             fmt.append(n)
-    if len(fmt) > 6:
-        fmt = fmt[:3] + ["et al."]
+    if len(fmt) > 6:  # IEEE: понад шість авторів — перший і et al.
+        fmt = fmt[:1] + ["et al."]
     if fmt and fmt[-1] == "et al.":
         return ", ".join(fmt[:-1]) + " et al."
-    return ", ".join(fmt[:-1]) + (" and " if len(fmt) > 1 else "") + fmt[-1]
+    if len(fmt) <= 2:
+        return " and ".join(fmt)
+    return ", ".join(fmt[:-1]) + ", and " + fmt[-1]
 
 
 def entry(f: dict) -> str:
+    """Запис у стилі IEEE."""
     a = authors(f.get("author", ""))
     t, y = f.get("title", ""), f.get("year", "")
-    doi = f" \\doi{{{f['doi']}}}" if "doi" in f else ""
+    doi = f" \doi{{{f['doi']}}}" if "doi" in f else ""
     kind = f["_type"]
     if kind == "article":
-        vol = f.get("volume", "")
-        num = f"({f['number']})" if "number" in f else ""
-        pages = f", {f['pages']}" if "pages" in f else ""
-        return f"{a}, ``{t},'' \\emph{{{f.get('journal', '')}}}, vol.~{vol}{num}{pages}, {y}.{doi}"
+        vol = f", vol.~{f['volume']}" if "volume" in f else ""
+        num = f", no.~{f['number']}" if "number" in f else ""
+        pages = f.get('pages', '')
+        pg = (f", pp.~{pages}" if "--" in pages else f", Art.~no.~{pages}") if pages else ""
+        return f"{a}, ``{t},'' \emph{{{f.get('journal', '')}}}{vol}{num}{pg}, {y}.{doi}"
     if kind in ("inproceedings", "incollection"):
         pages = f", pp.~{f['pages']}" if "pages" in f else ""
-        return f"{a}, ``{t},'' in \\emph{{{f.get('booktitle', '')}}}{pages}, {y}.{doi}"
+        return f"{a}, ``{t},'' in \emph{{{f.get('booktitle', '')}}}{pages}, {y}.{doi}"
     if kind == "book":
-        return f"{a}, \\emph{{{t}}}. {f.get('address', '')}: {f.get('publisher', '')}, {y}."
+        return f"{a}, \emph{{{t}}}. {f.get('address', '')}: {f.get('publisher', '')}, {y}."
     # misc / web
-    year = f", {y}" if y else ""
-    note = f" {f['note']}." if "note" in f else ""
-    return f"{a}, ``{t}''{year}. {f.get('howpublished', '')}.{note}"
+    year = f" {y}." if y else ""
+    note = f". {f['note']}." if "note" in f else "."
+    return f"{a}, ``{t},''{year} [Online]. Available: {f.get('howpublished', '')}{note}"
 
 
 def main() -> None:
