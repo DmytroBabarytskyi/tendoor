@@ -264,7 +264,7 @@ export default function DashboardPage() {
             {stats ? (
               <div className="grid gap-x-10 md:grid-cols-2">
                 <BarList
-                  rows={stats.top_units.map((u) => ({ key: u.code, label: u.name ?? u.code, hint: u.code, value: u.n }))}
+                  rows={stats.top_units.map((u) => ({ key: u.code, label: u.name ?? u.code, value: u.n }))}
                 />
                 <div className="mt-6 flex items-start gap-3 rounded-lg bg-muted/60 p-4 text-sm text-muted-foreground md:mt-0">
                   <Database className="mt-0.5 size-4 shrink-0" />

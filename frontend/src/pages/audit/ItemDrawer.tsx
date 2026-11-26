@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { date, dateTime, money } from '@/lib/format'
+import { date, dateTime, money, unitShort } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { refreshBadges } from '@/layout/badges'
 import { StatePill } from './VerdictPill'
@@ -76,6 +76,7 @@ export default function ItemDrawer({
   onSaved,
   onNext,
   onPrev,
+  position,
 }: {
   itemId: number | null
   runId?: number | null
@@ -83,6 +84,8 @@ export default function ItemDrawer({
   onSaved?: (v: Verdict) => void
   onNext?: () => void
   onPrev?: () => void
+  /** номер позиції в черзі та її довжина – для підпису «позиція N з M» */
+  position?: { index: number; total: number }
 }) {
   const { user, hasRole } = useAuth()
   const [card, setCard] = useState<{ id: number; data: Card } | null>(null)
@@ -193,7 +196,7 @@ export default function ItemDrawer({
   const it = data?.item
   const r = data?.result
   const price = r?.model_price ?? it?.unit_price_base
-  const unit = r?.model_unit ?? it?.base_unit_code
+  const unit = unitShort(r?.model_unit ?? it?.base_unit_code)
   return (
     <Sheet open={itemId != null} onOpenChange={(o) => !o && onClose()}>
       <SheetContent showCloseButton={false} className="w-full gap-0 overflow-y-auto p-0 sm:max-w-2xl">
@@ -201,7 +204,10 @@ export default function ItemDrawer({
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <SheetTitle className="font-serif text-xl">Розгляд позиції</SheetTitle>
-              <SheetDescription className="truncate">{it ? it.tender_code : 'Завантаження…'}</SheetDescription>
+              <SheetDescription className="truncate">
+                {position && `Позиція ${position.index} з ${position.total} · `}
+                {it ? it.tender_code : 'Завантаження…'}
+              </SheetDescription>
             </div>
             <div className="flex items-center gap-1">
               {(onPrev || onNext) && (
@@ -253,7 +259,7 @@ export default function ItemDrawer({
               <section>
                 <h4 className="mb-1 font-sans text-sm font-semibold">Що вплинуло на ризик</h4>
                 <p className="mb-3 text-xs text-muted-foreground">
-                  Внесок кожної ознаки в пунктах ризику: червоне підвищує, зелене знижує відносно звичайної позиції.
+                  Скільки пунктів (зі 100) кожна ознака додає до ризику (червоне) або знімає (зелене) порівняно з типовою позицією.
                 </p>
                 <Contributions items={r.contributions} />
               </section>

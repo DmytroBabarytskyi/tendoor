@@ -1,5 +1,5 @@
 import { subDays, startOfMonth, subMonths, endOfMonth } from 'date-fns'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 import { uk } from 'react-day-picker/locale'
@@ -48,9 +48,10 @@ export default function DateRangePicker({
       }}
     >
       <PopoverTrigger asChild>
-        <Button id={id} variant="outline" className={cn('w-full justify-start font-normal', !value && 'text-muted-foreground', className)}>
+        <Button id={id} variant="outline" className={cn('w-full justify-start bg-card font-normal', !value && 'text-muted-foreground', className)}>
           <CalendarDays className="text-muted-foreground" />
           <span className="tabular">{value ? `${date(value.from)} – ${date(value.to)}` : 'Оберіть період'}</span>
+          <ChevronDown className="ml-auto opacity-60" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

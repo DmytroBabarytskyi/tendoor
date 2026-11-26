@@ -1,4 +1,4 @@
-import { ScanSearch } from 'lucide-react'
+import { ChevronRight, ScanSearch } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
 import { EmptyState, Page, PageHeader, Panel } from '@/components/page'
@@ -6,7 +6,7 @@ import Pagination from '@/components/Pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { dateTime, money } from '@/lib/format'
+import { dateTime, money, unitShort } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import ItemDrawer from './ItemDrawer'
 import VerdictPill, { StatePill } from './VerdictPill'
@@ -114,26 +114,35 @@ export default function ChecksPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-5">Змінено</TableHead>
-                  <TableHead>Стан</TableHead>
-                  <TableHead>Висновок</TableHead>
+                  <TableHead>Висновок і стан</TableHead>
                   <TableHead>Причина</TableHead>
                   <TableHead>Предмет</TableHead>
                   <TableHead className="text-right">Ціна</TableHead>
                   <TableHead>Замовник</TableHead>
-                  <TableHead className="pr-5">Аудитор</TableHead>
+                  <TableHead>Аудитор</TableHead>
+                  <TableHead className="w-10 pr-5">
+                    <span className="sr-only">Дія</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((v) => (
                   <TableRow key={v.id} className={cn('cursor-pointer', opened === v.item_id && 'bg-accent/60')} onClick={() => setOpened(v.item_id)}>
                     <TableCell className="pl-5 whitespace-nowrap text-muted-foreground tabular">{dateTime(v.updated_at)}</TableCell>
-                    <TableCell><StatePill state={v.state} /></TableCell>
-                    <TableCell><VerdictPill status={v.status} /></TableCell>
-                    <TableCell className="whitespace-nowrap">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
-                    <TableCell className="max-w-[300px]"><span className="line-clamp-2">{v.description}</span></TableCell>
-                    <TableCell className="text-right whitespace-nowrap tabular">{money(v.unit_price_base)} грн/{v.base_unit_code}</TableCell>
-                    <TableCell className="max-w-[220px] truncate">{v.entity_name}</TableCell>
-                    <TableCell className="max-w-[180px] truncate pr-5">{v.user_name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <VerdictPill status={v.status} />
+                        <StatePill state={v.state} />
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-[140px]">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
+                    <TableCell className="max-w-[240px]"><span className="line-clamp-2">{v.description}</span></TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular">{money(v.unit_price_base)} грн/{unitShort(v.base_unit_code)}</TableCell>
+                    <TableCell className="max-w-[200px]"><span className="line-clamp-2" title={v.entity_name}>{v.entity_name}</span></TableCell>
+                    <TableCell className="max-w-[160px] truncate">{v.user_name}</TableCell>
+                    <TableCell className="pr-5 text-muted-foreground" title="Розглянути позицію">
+                      <ChevronRight className="size-4" aria-hidden />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -150,6 +159,7 @@ export default function ChecksPage() {
         onSaved={() => setReload((n) => n + 1)}
         onNext={idx >= 0 && idx < items.length - 1 ? () => setOpened(items[idx + 1].item_id) : undefined}
         onPrev={idx > 0 ? () => setOpened(items[idx - 1].item_id) : undefined}
+        position={idx >= 0 ? { index: (page - 1) * PAGE + idx + 1, total: data?.total ?? items.length } : undefined}
       />
     </Page>
   )

@@ -14,4 +14,15 @@ export const date = (d: string | Date) => fmt(toDate(d), 'dd.MM.yyyy', { locale:
 export const shortDate = (d: string | Date) => fmt(toDate(d), 'dd.MM.yy', { locale: uk })
 export const dateTime = (d: string | Date) => fmt(toDate(d), 'dd.MM.yyyy HH:mm', { locale: uk })
 export const isoDay = (d: Date) => fmt(d, 'yyyy-MM-dd')
+// коди одиниць виміру (UN/ECE Rec. 20) -> звичні скорочення
+const UNIT_SHORT: Record<string, string> = {
+  KGM: 'кг', GRM: 'г', TNE: 'т', LTR: 'л', MLT: 'мл', MTQ: 'м³', MTR: 'м', MTK: 'м²', H87: 'шт', PR: 'пара', SET: 'набір',
+}
+export const unitShort = (code: string | null | undefined) => (code ? (UNIT_SHORT[code] ?? code) : 'од.')
+
+/** Назва групи товарів з ключових слів без повторів: «вироби, макаронний вироби» -> «вироби макаронний». */
+export const groupName = (terms: string[]) => {
+  const words = [...new Set(terms.flatMap((t) => t.split(/[\s,;]+/)).filter(Boolean))]
+  return words.slice(0, 5).join(' ') || 'без назви'
+}
 export const ratio = (v: number | null) => (v == null ? '—' : v >= 1 ? `▲ ×${num(v)} вище` : `▼ ×${num(1 / v)} нижче`)

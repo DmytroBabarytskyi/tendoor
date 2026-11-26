@@ -201,6 +201,7 @@ async def points(request_id: int, category_id: int, user: CurrentUser, request: 
 
 
 _PACK_UNIT = {"KGM": "кг", "LTR": "л"}
+_UNIT = {**_PACK_UNIT, "H87": "шт", "GRM": "г", "TNE": "т", "MLT": "мл", "MTR": "м", "MTK": "м²", "MTQ": "м³"}
 
 
 def _n(x: float, d: int = 2) -> str:
@@ -214,12 +215,13 @@ def explain(r: dict) -> str:
         return "Група замала для статистичного порівняння цін."
     ratio, med = r["price_ratio"], float(r["median_price"] or 0)
     # v2 порівнює ціну в одиниці моделі: «штука» з фасовкою в описі перераховується в грн/кг, грн/л
-    unit = r.get("model_unit") or r["base_unit_code"]
+    code = r.get("model_unit") or r["base_unit_code"]
+    unit = _UNIT.get(code, code)
     price = float(r["model_price"] if r.get("model_price") is not None else r["unit_price_base"])
     direction = f"у {_n(ratio, 1)} раза вища" if ratio >= 1 else f"у {_n(1 / ratio, 1)} раза нижча"
     text = f"Ціна {_n(price)} грн/{unit} {direction} за медіану групи ({_n(med)} грн/{unit})"
     if r.get("pack_size"):
-        text += f" — перераховано з фасовки {float(r['pack_size']):g} {_PACK_UNIT.get(unit, unit)}"
+        text += f" — перераховано з фасовки {float(r['pack_size']):g} {unit}"
     reasons = []
     if r["is_extreme"]:
         reasons.append("ціна надзвичайно далека від решти цін групи")

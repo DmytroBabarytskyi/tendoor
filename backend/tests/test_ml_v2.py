@@ -125,7 +125,7 @@ def test_explain_uses_model_unit_for_converted_packs():
     }
     text = explain(r)
     assert (
-        "120,00 грн/LTR" in text and "фасовки 5 л" in text and "в 4,2 раза більше за звичайний розкид" in text
+        "120,00 грн/л" in text and "фасовки 5 л" in text and "в 4,2 раза більше за звичайний розкид" in text
     )
     legacy = {
         **r,
@@ -135,7 +135,7 @@ def test_explain_uses_model_unit_for_converted_packs():
         "base_unit_code": "LTR",
         "unit_price_base": 120.0,
     }
-    assert "120,00 грн/LTR" in explain(legacy) and "фасовки" not in explain(legacy)
+    assert "120,00 грн/л" in explain(legacy) and "фасовки" not in explain(legacy)
 
 
 def test_shapley_contributions_sum_to_risk_minus_base():

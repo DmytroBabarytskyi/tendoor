@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { date, money, pct, ratio } from '@/lib/format'
+import { date, groupName, money, pct, ratio, unitShort } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/theme/context'
 import ItemDrawer from '../audit/ItemDrawer'
@@ -134,7 +134,7 @@ export default function ResultPage() {
   const option = useMemo(() => {
     if (!cat || !points || points.cat !== cat.id) return null
     void resolved // перебудувати кольори діаграми після зміни теми
-    return view === 'price' ? priceVolumeOption(points.data, cat.base_unit_code, cat.median_price ?? undefined) : pcaOption(points.data, cat.base_unit_code)
+    return view === 'price' ? priceVolumeOption(points.data, unitShort(cat.base_unit_code), cat.median_price ?? undefined) : pcaOption(points.data, unitShort(cat.base_unit_code))
   }, [cat, points, view, resolved])
 
   const groups = useMemo(() => {
@@ -279,9 +279,9 @@ export default function ResultPage() {
                       )}
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{c.top_terms.slice(0, 3).join(', ') || 'без назви'}</span>
+                        <span className="block truncate text-sm font-medium">{groupName(c.top_terms)}</span>
                         <span className="block text-xs text-muted-foreground">
-                          <span className="font-mono">{c.cpv_code}</span> · {c.base_unit_code} · медіана {money(c.median_price)} грн
+                          <span className="font-mono">{c.cpv_code}</span> · медіана {money(c.median_price)} грн/{unitShort(c.base_unit_code)}
                         </span>
                       </span>
                       <span className="shrink-0 text-right text-xs tabular">
@@ -297,7 +297,7 @@ export default function ResultPage() {
               </ul>
             </Panel>
             <Panel
-              title={cat ? cat.top_terms.slice(0, 3).join(', ') : 'Група'}
+              title={cat ? groupName(cat.top_terms) : 'Група'}
               description={cat ? `${cat.size} позицій · ${cat.n_anomalies} аномальних · ▲ аномалія, ● звичайна ціна` : undefined}
               actions={
                 <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as 'price' | 'pca')}>
@@ -382,11 +382,11 @@ export default function ResultPage() {
                               {money(r.model_price ?? r.unit_price_base)} грн/{r.model_unit}
                             </TooltipTrigger>
                             <TooltipContent>
-                              Перераховано з фасовки {r.pack_size}: у документі {money(r.unit_price_base)} грн/{r.base_unit_code}
+                              Перераховано з фасовки {r.pack_size}: у документі {money(r.unit_price_base)} грн/{unitShort(r.base_unit_code)}
                             </TooltipContent>
                           </Tooltip>
                         ) : (
-                          `${money(r.model_price ?? r.unit_price_base)} грн/${r.model_unit ?? r.base_unit_code}`
+                          `${money(r.model_price ?? r.unit_price_base)} грн/${unitShort(r.model_unit ?? r.base_unit_code)}`
                         )}
                       </TableCell>
                       <TableCell
@@ -394,13 +394,13 @@ export default function ResultPage() {
                       >
                         {ratio(r.price_ratio)}
                       </TableCell>
-                      <TableCell className="max-w-[320px]">
+                      <TableCell className="max-w-[260px]">
                         <span className="line-clamp-2">{r.description}</span>
                       </TableCell>
                       <TableCell>
                         <VerdictPill status={r.verdict_status} state={r.verdict_state} />
                       </TableCell>
-                      <TableCell className="max-w-[260px] pr-5">
+                      <TableCell className="max-w-[220px] pr-5">
                         <span className="line-clamp-2" title={r.entity_name}>{r.entity_name}</span>
                         <a
                           href={`https://prozorro.gov.ua/tender/${r.tender_code}`}
@@ -438,6 +438,7 @@ export default function ResultPage() {
             onSaved={() => setReloadRows((n) => n + 1)}
             onNext={idx >= 0 && idx < items.length - 1 ? () => setOpened(items[idx + 1].item_id) : undefined}
             onPrev={idx > 0 ? () => setOpened(items[idx - 1].item_id) : undefined}
+            position={idx >= 0 ? { index: (page - 1) * PAGE + idx + 1, total: rows?.total ?? items.length } : undefined}
           />
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {m.importance && m.importance.length > 0 && (

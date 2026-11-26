@@ -66,7 +66,7 @@ async def test_results_require_finished_request(client, login, fake):
     body = (await client.get(url.format(done["id"]), headers=headers)).json()
     assert body["total"] == 1
     explanation = body["items"][0]["explanation"]
-    assert "у 4,0 раза вища за медіану групи (20,00 грн/KGM)" in explanation
+    assert "у 4,0 раза вища за медіану групи (20,00 грн/кг)" in explanation
     # аудитору показуються лише ознаки, що впливають на рішення v2: сильне відхилення так, DBSCAN — ні
     assert "відхилення в 4,2 раза більше за звичайний розкид" in explanation and "DBSCAN" not in explanation
 
