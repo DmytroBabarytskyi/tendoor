@@ -25,6 +25,7 @@ import VerdictPill from '../audit/VerdictPill'
 import { pcaOption, priceVolumeOption, type Point } from './charts'
 import HomogeneityCard from './HomogeneityCard'
 import type { AnalysisRequest, AnomalyRow, Category } from './types'
+import InfoHint from '@/components/InfoHint'
 
 const PAGE = 20
 
@@ -246,7 +247,13 @@ export default function ResultPage() {
             <StatTile label="Проаналізовано позицій" value={m.n_analysed} hint={`з ${m.n_items.toLocaleString('uk-UA')} у вибірці`} />
             <StatTile label="Високий ризик" value={m.n_anomalies} hint={`${pct(m.anomaly_share, 1)} проаналізованих`} />
             <StatTile label="Ймовірні помилки даних" value={m.n_extreme} hint="ціна далеко поза межами групи" />
-            <StatTile label="Однорідних груп" value={m.n_groups} hint={`розрахунок ${m.seconds.toFixed(0)} с`} />
+            <StatTile
+              label={
+                <>
+                  Однорідних груп
+                  <InfoHint>Групи схожих товарів (за кодом ДК 021 і текстом опису), всередині яких ціни можна порівнювати між собою.</InfoHint>
+                </>
+              } value={m.n_groups} hint={`розрахунок ${Math.round(m.seconds)} с`} />
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(320px,2fr)_3fr]">
@@ -295,7 +302,9 @@ export default function ResultPage() {
               actions={
                 <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as 'price' | 'pca')}>
                   <ToggleGroupItem value="price">Ціна × обсяг</ToggleGroupItem>
-                  <ToggleGroupItem value="pca">Простір ознак</ToggleGroupItem>
+                  <ToggleGroupItem value="pca" title="Карта схожості позицій: близькі точки мають схожі ціну, обсяг, дату й опис; віддалені точки – нетипові">
+                    Простір ознак
+                  </ToggleGroupItem>
                 </ToggleGroup>
               }
             >
@@ -342,7 +351,10 @@ export default function ResultPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-32 pl-5">Ризик</TableHead>
+                    <TableHead className="w-32 pl-5">
+                      Ризик
+                      <InfoHint>Оцінка 0–100: наскільки ймовірно, що аудитор підтвердить аномалію. 80+ – високий, 50–79 – середній. Позиції з однаковою оцінкою впорядковано за силою відхилення ціни.</InfoHint>
+                    </TableHead>
                     <TableHead className="text-right">Ціна</TableHead>
                     <TableHead>Відхилення</TableHead>
                     <TableHead>Предмет закупівлі</TableHead>
@@ -378,7 +390,7 @@ export default function ResultPage() {
                         )}
                       </TableCell>
                       <TableCell
-                        className={cn('whitespace-nowrap tabular', r.price_ratio != null && (r.price_ratio >= 1 ? 'text-critical' : 'text-info'))}
+                        className={cn('whitespace-nowrap tabular', r.price_ratio != null && (r.price_ratio >= 1 ? 'text-critical' : 'text-warning'))}
                       >
                         {ratio(r.price_ratio)}
                       </TableCell>
@@ -389,7 +401,7 @@ export default function ResultPage() {
                         <VerdictPill status={r.verdict_status} state={r.verdict_state} />
                       </TableCell>
                       <TableCell className="max-w-[260px] pr-5">
-                        <span className="block truncate">{r.entity_name}</span>
+                        <span className="line-clamp-2" title={r.entity_name}>{r.entity_name}</span>
                         <a
                           href={`https://prozorro.gov.ua/tender/${r.tender_code}`}
                           target="_blank"

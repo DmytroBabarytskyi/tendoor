@@ -9,6 +9,7 @@ import { Pill } from '@/components/status'
 import { REQUEST_STATUS, type RequestStatus } from '@/components/status-meta'
 import TagsInput from '@/components/TagsInput'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -48,6 +49,7 @@ export default function SyncPage() {
   const [cpv, setCpv] = useState<string[]>([])
   const [categories, setCategories] = useState<string[]>(['goods'])
   const [submitting, setSubmitting] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   const load = useCallback(() => {
     api<Job[]>('/sync/jobs').then(setJobs)
@@ -116,11 +118,36 @@ export default function SyncPage() {
               })}
             </div>
           </div>
-          <Button onClick={submit} disabled={!period || submitting}>
+          <Button onClick={() => setConfirming(true)} disabled={!period || submitting}>
             {submitting ? <LoaderCircle className="animate-spin" /> : <CloudDownload />}
             Запустити
           </Button>
         </div>
+        <Dialog open={confirming} onOpenChange={setConfirming}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Запустити завантаження з Prozorro?</DialogTitle>
+              <DialogDescription>
+                {period && `Період змін: ${date(period.from)} – ${date(period.to)}`}
+                {cpv.length > 0 && ` · коди ДК 021: ${cpv.join(', ')}`}. Орієнтовно {Math.max(1, days) * 25} тис. змін і{' '}
+                {Math.max(1, days) * 10} хв обробки. Завдання виконується у фоні – сторінку можна закрити.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirming(false)}>
+                Скасувати
+              </Button>
+              <Button
+                onClick={() => {
+                  setConfirming(false)
+                  submit()
+                }}
+              >
+                <CloudDownload /> Запустити
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <p className="mt-4 text-xs text-muted-foreground">
           Одна доба — близько 25 тис. змін і ~10 хвилин обробки
           {days > 1 && ` · обраний період: ${days} діб, орієнтовно ${Math.round(days * 10)} хв`}. Перерване завдання продовжиться з того

@@ -75,6 +75,7 @@ function SidebarNav({ onNavigate, badges }: { onNavigate?: () => void; badges: B
                         <span
                           className="min-w-5 rounded-full bg-primary px-1.5 text-center text-[11px] leading-5 font-semibold text-primary-foreground tabular"
                           aria-label={`${badgeFor(n.to, badges)} очікують дії`}
+                          title={n.to === '/checks' ? 'Висновки, що чекають вашого рішення або повернені вам' : 'Нові заявки на доступ'}
                         >
                           {badgeFor(n.to, badges)}
                         </span>

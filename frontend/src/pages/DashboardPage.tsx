@@ -95,6 +95,7 @@ export default function DashboardPage() {
   const { hasRole } = useAuth()
   const badges = useBadges()
   const [stats, setStats] = useState<Stats | null>(null)
+  const [loadedAt, setLoadedAt] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recent, setRecent] = useState<AnalysisRequest[] | null>(null)
   const [order, setOrder] = useState<TileId[]>(loadOrder)
@@ -104,7 +105,13 @@ export default function DashboardPage() {
   )
 
   useEffect(() => {
-    api<Stats>('/procurement/stats').then(setStats, (e: Error) => setError(e.message))
+    api<Stats>('/procurement/stats').then(
+      (s) => {
+        setStats(s)
+        setLoadedAt(new Date())
+      },
+      (e: Error) => setError(e.message),
+    )
     api<AnalysisRequest[]>('/analysis/requests?limit=6').then(setRecent, () => setRecent([]))
   }, [])
 
@@ -145,7 +152,9 @@ export default function DashboardPage() {
   }
 
   const period =
-    stats?.date_min && stats.date_max ? `Оголошені ${date(stats.date_min)} – ${date(stats.date_max)}` : undefined
+    stats?.date_min && stats.date_max
+      ? `Оголошені ${date(stats.date_min)} – ${date(stats.date_max)}${loadedAt ? ` · дані на ${dateTime(loadedAt)}` : ''}`
+      : undefined
 
   return (
     <div className="relative -mx-4 -my-6 min-h-[calc(100svh-3.5rem)] overflow-hidden px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:-my-8 lg:px-8 lg:py-8">

@@ -348,7 +348,8 @@ class SqlAnalysisRepository:
                     await s.execute(
                         text(
                             f"""SELECT * FROM v_anomaly_queue WHERE {where}
-                    ORDER BY is_anomaly DESC, is_extreme DESC, risk_score DESC NULLS LAST, result_id
+                    ORDER BY is_anomaly DESC, is_extreme DESC, risk_score DESC NULLS LAST,
+                             abs(robust_z) DESC NULLS LAST, result_id
                     LIMIT :limit OFFSET :offset"""
                         ),
                         params,

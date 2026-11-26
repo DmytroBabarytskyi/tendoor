@@ -1,4 +1,5 @@
 import { motion } from 'motion/react'
+import { num } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export type Contribution = { feature: string; label: string; value: number; points: number }
@@ -8,11 +9,12 @@ function valueText(c: Contribution): string {
   const v = c.value
   switch (c.feature) {
     case 'abs_z':
+      return `у ${num(Math.abs(v))} раза більше за звичайний розкид`
     case 'z':
-      return `z = ${v.toFixed(1)}`
+      return v >= 0 ? 'дорожче за типові ціни групи' : 'дешевше за типові ціни групи'
     case 'log_ratio': {
       const r = Math.exp(v)
-      return r >= 1 ? `×${r.toFixed(1)} вище медіани` : `×${(1 / r).toFixed(1)} нижче медіани`
+      return r >= 1 ? `×${num(r)} вище медіани` : `×${num(1 / r)} нижче медіани`
     }
     case 'log_group_size':
       return `${Math.round(Math.exp(v))} поз.`
@@ -55,7 +57,10 @@ export default function Contributions({ items }: { items: Contribution[] }) {
                 transition={{ duration: 0.5, delay: i * 0.03 }}
               />
             </div>
-            <span className={cn('text-right text-xs font-medium tabular', up ? 'text-critical' : 'text-success')}>
+            <span
+              className={cn('text-right text-xs font-medium tabular', up ? 'text-critical' : 'text-success')}
+              title={`${up ? 'Підвищує' : 'Знижує'} ризик на ${Math.abs(c.points).toFixed(0)} пунктів зі 100`}
+            >
               {up ? '+' : '−'}
               {Math.abs(c.points).toFixed(0)}
             </span>

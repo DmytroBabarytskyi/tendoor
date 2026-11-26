@@ -1,4 +1,4 @@
-import { BadgeCheck, ChevronDown, ChevronUp, ExternalLink, LoaderCircle, PenLine, Send, Undo2 } from 'lucide-react'
+import { BadgeCheck, ChevronDown, ChevronUp, ExternalLink, LoaderCircle, PenLine, Send, Undo2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
@@ -10,7 +10,7 @@ import { VERDICT_TONE } from '@/components/status-meta'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { date, dateTime, money } from '@/lib/format'
@@ -196,23 +196,30 @@ export default function ItemDrawer({
   const unit = r?.model_unit ?? it?.base_unit_code
   return (
     <Sheet open={itemId != null} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-2xl">
+      <SheetContent showCloseButton={false} className="w-full gap-0 overflow-y-auto p-0 sm:max-w-2xl">
         <SheetHeader className="sticky top-0 z-10 border-b bg-background/90 px-6 py-4 backdrop-blur">
-          <div className="flex items-center justify-between gap-3 pr-8">
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <SheetTitle className="font-serif text-xl">Розгляд позиції</SheetTitle>
               <SheetDescription className="truncate">{it ? it.tender_code : 'Завантаження…'}</SheetDescription>
             </div>
-            {(onPrev || onNext) && (
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="size-8" onClick={onPrev} disabled={!onPrev} aria-label="Попередня позиція (K)">
-                  <ChevronUp />
+            <div className="flex items-center gap-1">
+              {(onPrev || onNext) && (
+                <>
+                  <Button variant="outline" size="icon" className="size-9" onClick={onPrev} disabled={!onPrev} aria-label="Попередня позиція (K)" title="Попередня позиція (K)">
+                    <ChevronUp />
+                  </Button>
+                  <Button variant="outline" size="icon" className="size-9" onClick={onNext} disabled={!onNext} aria-label="Наступна позиція (J)" title="Наступна позиція (J)">
+                    <ChevronDown />
+                  </Button>
+                </>
+              )}
+              <SheetClose asChild>
+                <Button variant="ghost" size="icon" className="ml-1 size-9" aria-label="Закрити (Esc)" title="Закрити (Esc)">
+                  <X />
                 </Button>
-                <Button variant="outline" size="icon" className="size-8" onClick={onNext} disabled={!onNext} aria-label="Наступна позиція (J)">
-                  <ChevronDown />
-                </Button>
-              </div>
-            )}
+              </SheetClose>
+            </div>
           </div>
         </SheetHeader>
 

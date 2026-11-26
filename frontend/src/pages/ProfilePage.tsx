@@ -77,7 +77,11 @@ export default function ProfilePage() {
             <div className="space-y-1.5">
               <Label htmlFor="new">Новий пароль</Label>
               <Input id="new" type="password" required minLength={MIN_PASSWORD} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Щонайменше {MIN_PASSWORD} символів.</p>
+              <p className="text-xs text-muted-foreground" role="status">
+                {newPassword.length > 0 && newPassword.length < MIN_PASSWORD
+                  ? `Ще ${MIN_PASSWORD - newPassword.length} симв. до мінімуму (${MIN_PASSWORD})`
+                  : `Щонайменше ${MIN_PASSWORD} символів.`}
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="confirm">Повторіть новий пароль</Label>

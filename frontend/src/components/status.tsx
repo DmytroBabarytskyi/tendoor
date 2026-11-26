@@ -1,4 +1,5 @@
 import { FileWarning, type LucideIcon } from 'lucide-react'
+import { num } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { REQUEST_STATUS, riskLevel, type RequestStatus, type Tone } from './status-meta'
 
@@ -52,10 +53,12 @@ export function RiskPill({ risk }: { risk: number | null }) {
 export function RiskMeter({ risk }: { risk: number | null }) {
   const l = riskLevel(risk)
   if (!l) return <span className="text-muted-foreground">—</span>
+  // біля верхньої межі показуємо десяті, щоб позиції з «100» розрізнялися
+  const shown = risk != null && risk >= 99 && risk < 99.95 ? num(risk, 1) : String(l.r)
   const bar = l.tone === 'critical' ? 'bg-critical' : l.tone === 'warning' ? 'bg-warning' : 'bg-muted-foreground/50'
   return (
-    <div className="flex items-center gap-2" title={`Ризик ${l.r} з 100 — ${l.label}`}>
-      <span className="w-7 text-right text-sm font-semibold tabular">{l.r}</span>
+    <div className="flex items-center gap-2" title={`Ризик ${shown} з 100 — ${l.label}`}>
+      <span className="w-9 text-right text-sm font-semibold tabular">{shown}</span>
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
         <div className={cn('h-full rounded-full', bar)} style={{ width: `${l.r}%` }} />
       </div>

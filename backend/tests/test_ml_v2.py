@@ -124,7 +124,9 @@ def test_explain_uses_model_unit_for_converted_packs():
         "is_anomaly": True,
     }
     text = explain(r)
-    assert "120.00 грн/LTR" in text and "фасовки 5 л" in text and "|z| = 4.2" in text
+    assert (
+        "120,00 грн/LTR" in text and "фасовки 5 л" in text and "в 4,2 раза більше за звичайний розкид" in text
+    )
     legacy = {
         **r,
         "model_price": None,
@@ -133,7 +135,7 @@ def test_explain_uses_model_unit_for_converted_packs():
         "base_unit_code": "LTR",
         "unit_price_base": 120.0,
     }
-    assert "120.00 грн/LTR" in explain(legacy) and "фасовки" not in explain(legacy)
+    assert "120,00 грн/LTR" in explain(legacy) and "фасовки" not in explain(legacy)
 
 
 def test_shapley_contributions_sum_to_risk_minus_base():
@@ -179,6 +181,6 @@ def test_explain_reports_data_error_even_without_high_risk():
         "is_anomaly": False,
     }
     text = explain(r)
-    assert "екстремальне значення" in text and "Ймовірна помилка даних" in text
+    assert "надзвичайно далека від решти цін" in text and "Ймовірна помилка даних" in text
     normal = {**r, "is_extreme": False, "price_ratio": 1.1, "robust_z": 0.3}
     assert "Ймовірна помилка даних" not in explain(normal)

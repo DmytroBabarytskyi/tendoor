@@ -34,7 +34,7 @@ describe('chart options', () => {
   it('uses log axes for price/volume and skips points without a PCA projection', () => {
     const pv = priceVolumeOption(points, 'LTR') as { xAxis: { type: string; name: string } }
     expect(pv.xAxis.type).toBe('log')
-    expect(pv.xAxis.name).toBe('Обсяг, LTR')
+    expect(pv.xAxis.name).toBe('Обсяг, LTR (логарифмічна шкала)')
     const pca = pcaOption([...points, point(4, 60, false, null)], 'KGM').series as Series[]
     expect(pca.flatMap((s) => s.data).length).toBe(3)
   })

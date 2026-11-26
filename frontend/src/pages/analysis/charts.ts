@@ -34,7 +34,7 @@ const fmt = (v: number) => v.toLocaleString('uk-UA', { maximumFractionDigits: 2 
 
 function base(xName: string, yName: string, log: boolean, c: Colors): ChartOption {
   const axis = (name: string) => ({
-    name,
+    name: log ? `${name} (логарифмічна шкала)` : name,
     nameLocation: 'middle',
     nameGap: 32,
     type: log ? 'log' : 'value',

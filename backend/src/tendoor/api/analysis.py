@@ -203,27 +203,34 @@ async def points(request_id: int, category_id: int, user: CurrentUser, request: 
 _PACK_UNIT = {"KGM": "кг", "LTR": "л"}
 
 
+def _n(x: float, d: int = 2) -> str:
+    """Число в українському записі: десяткова кома."""
+    return f"{x:.{d}f}".replace(".", ",")
+
+
 def explain(r: dict) -> str:
-    """Пояснення для аудитора простою мовою."""
+    """Пояснення для аудитора простою мовою, без статистичних позначень."""
     if r["price_ratio"] is None:
         return "Група замала для статистичного порівняння цін."
     ratio, med = r["price_ratio"], float(r["median_price"] or 0)
     # v2 порівнює ціну в одиниці моделі: «штука» з фасовкою в описі перераховується в грн/кг, грн/л
     unit = r.get("model_unit") or r["base_unit_code"]
     price = float(r["model_price"] if r.get("model_price") is not None else r["unit_price_base"])
-    direction = f"у {ratio:.1f} раза вища" if ratio >= 1 else f"у {1 / ratio:.1f} раза нижча"
-    text = f"Ціна {price:.2f} грн/{unit} {direction} за медіану групи ({med:.2f} грн/{unit})"
+    direction = f"у {_n(ratio, 1)} раза вища" if ratio >= 1 else f"у {_n(1 / ratio, 1)} раза нижча"
+    text = f"Ціна {_n(price)} грн/{unit} {direction} за медіану групи ({_n(med)} грн/{unit})"
     if r.get("pack_size"):
         text += f" — перераховано з фасовки {float(r['pack_size']):g} {_PACK_UNIT.get(unit, unit)}"
     reasons = []
     if r["is_extreme"]:
-        reasons.append("екстремальне значення (поза межами Q1−3·IQR…Q3+3·IQR)")
+        reasons.append("ціна надзвичайно далека від решти цін групи")
     # лише ознаки, що реально впливають на рішення v2 (поріг |z| — як у правилі першого етапу);
     # щільнісний викид (DBSCAN) на рішення калібратора не впливає, тому аудитору не показується
     if r["robust_z"] is not None and abs(r["robust_z"]) >= 4:
-        reasons.append(f"сильне відхилення (|z| = {abs(r['robust_z']):.1f})")
+        reasons.append(
+            f"відхилення в {_n(abs(r['robust_z']), 1)} раза більше за звичайний розкид цін у групі"
+        )
     flagged = r["is_anomaly"] or r["is_extreme"]
-    text += ". Ознаки: " + "; ".join(reasons) + "." if reasons and flagged else "."
+    text += ". Чому позначено: " + "; ".join(reasons) + "." if reasons and flagged else "."
     if r["is_extreme"]:
         text += (
             " Ймовірна помилка даних: перевірте одиницю виміру, фасовку та чи не вказано суму лоту"

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import AdvancedParams, { type Overrides } from './AdvancedParams'
 import HomogeneityCard from './HomogeneityCard'
 import type { AnalysisRequest, Preview } from './types'
+import InfoHint from '@/components/InfoHint'
 
 const prefix = (code: string) => code.replace(/0+$/, '').padEnd(2, '0')
 
@@ -138,8 +139,10 @@ export default function AnalysisPage() {
                 {submitting ? <LoaderCircle className="animate-spin" /> : <FlaskConical />}
                 Знайти аномальні ціни
               </Button>
-              <span className="text-xs text-muted-foreground">
-                {current?.too_large
+              <span className="text-sm text-muted-foreground" role="status">
+                {!current
+                  ? 'Щоб запустити аналіз, оберіть товари за кодами ДК 021 і період'
+                  : current.too_large
                   ? 'Вибірка завелика — звузьте період або коди'
                   : current?.n_items === 0
                     ? 'За цими умовами немає позицій з ціною'
@@ -189,7 +192,10 @@ export default function AnalysisPage() {
                 <TableHead className="w-16 pl-5">№</TableHead>
                 <TableHead>ДК 021</TableHead>
                 <TableHead>Період</TableHead>
-                <TableHead className="text-right">Однорідність</TableHead>
+                <TableHead className="text-right">
+                  Однорідність
+                  <InfoHint>0–100: наскільки схожі між собою товари вибірки. Що вище, то надійніше порівняння цін.</InfoHint>
+                </TableHead>
                 <TableHead>Стан</TableHead>
                 <TableHead className="pr-5 text-right">Створено</TableHead>
               </TableRow>

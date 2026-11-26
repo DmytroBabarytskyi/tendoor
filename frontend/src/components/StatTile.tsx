@@ -24,7 +24,7 @@ export default function StatTile({
   className,
   children,
 }: {
-  label: string
+  label: ReactNode
   value: number | null | undefined
   format?: (v: number) => string
   hint?: ReactNode

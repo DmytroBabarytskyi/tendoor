@@ -77,11 +77,11 @@ export default function RegisterPage() {
               )}
               <div className="mt-6 space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="r-name">Прізвище, ім'я, по батькові</Label>
+                  <Label htmlFor="r-name">Прізвище, ім'я, по батькові <span className="text-critical" aria-hidden>*</span></Label>
                   <Input id="r-name" required minLength={2} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="bg-background/70" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="r-email">Службовий email</Label>
+                  <Label htmlFor="r-email">Службовий email <span className="text-critical" aria-hidden>*</span></Label>
                   <Input id="r-email" type="email" required autoComplete="username" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="bg-background/70" />
                 </div>
                 <div className="space-y-1.5">
@@ -107,19 +107,23 @@ export default function RegisterPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="r-pass">Пароль</Label>
+                    <Label htmlFor="r-pass">Пароль <span className="text-critical" aria-hidden>*</span></Label>
                     <Input id="r-pass" type="password" required minLength={MIN_PASSWORD} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="bg-background/70" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="r-confirm">Повторіть пароль</Label>
+                    <Label htmlFor="r-confirm">Повторіть пароль <span className="text-critical" aria-hidden>*</span></Label>
                     <Input id="r-confirm" type="password" required autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={mismatch} className="bg-background/70" />
                   </div>
                 </div>
                 <p className={cn('text-xs', mismatch ? 'text-critical' : 'text-muted-foreground')}>
-                  {mismatch ? 'Паролі не збігаються' : `Щонайменше ${MIN_PASSWORD} символів.`}
+                  {mismatch
+                    ? 'Паролі не збігаються'
+                    : form.password.length > 0 && form.password.length < MIN_PASSWORD
+                      ? `Ще ${MIN_PASSWORD - form.password.length} симв. до мінімуму (${MIN_PASSWORD})`
+                      : `Щонайменше ${MIN_PASSWORD} символів.`}
                 </p>
                 <div className="space-y-1.5">
-                  <Label htmlFor="r-why">Підрозділ і мета доступу</Label>
+                  <Label htmlFor="r-why">Підрозділ і мета доступу <span className="font-normal text-muted-foreground">(необов'язково)</span></Label>
                   <Textarea id="r-why" maxLength={1000} value={form.justification} onChange={(e) => setForm({ ...form, justification: e.target.value })} placeholder="Напр.: відділ моніторингу закупівель, перевірка цін на продукти харчування" className="min-h-16 bg-background/70" />
                 </div>
               </div>

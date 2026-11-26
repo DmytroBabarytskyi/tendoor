@@ -96,7 +96,7 @@ export default function LoginPage() {
 
             <div className="mt-6 space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Службовий email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -141,6 +141,9 @@ export default function LoginPage() {
               <Link to="/register" className="text-primary underline-offset-4 hover:underline">
                 Подати заявку
               </Link>
+            </p>
+            <p className="mt-1 text-center text-xs text-muted-foreground">
+              Забули пароль? Зверніться до адміністратора вашого підрозділу – він встановить новий.
             </p>
           </form>
         </motion.div>

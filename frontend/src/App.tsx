@@ -1,7 +1,7 @@
 import { LoaderCircle, MapPinOff, ShieldX } from 'lucide-react'
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Link, Navigate, RouterProvider, useLocation } from 'react-router'
-import type { Role } from './api/client'
+import { ROLE_NAMES, type Role } from './api/client'
 import { AuthProvider } from './auth/AuthContext'
 import { useAuth } from './auth/context'
 import { EmptyState } from './components/page'
@@ -9,6 +9,7 @@ import { Button } from './components/ui/button'
 import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 import AppLayout from './layout/AppLayout'
+import { NAV } from './layout/nav'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import { ThemeProvider } from './theme/ThemeProvider'
@@ -40,9 +41,17 @@ function Protected({ roles, children }: { roles?: Role[]; children: ReactNode })
   if (!ready) return <Loading />
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (roles && !hasRole(...roles)) {
+    const page = NAV.find((n) => n.to !== '/' && location.pathname.startsWith(n.to))
     return (
       <EmptyState icon={ShieldX} title="Недостатньо прав" className="min-h-[50vh]">
-        Ця сторінка недоступна для вашої ролі.
+        <p>
+          {page ? `Сторінка «${page.label}»` : 'Ця сторінка'} доступна лише ролям: {roles.map((r) => ROLE_NAMES[r]).join(', ')}. Ваша роль –{' '}
+          {ROLE_NAMES[user.role]}.
+        </p>
+        <p className="mt-1">Якщо доступ потрібен для роботи, зверніться до адміністратора системи.</p>
+        <Button asChild variant="outline" size="sm" className="mt-3">
+          <Link to="/">На головну</Link>
+        </Button>
       </EmptyState>
     )
   }
