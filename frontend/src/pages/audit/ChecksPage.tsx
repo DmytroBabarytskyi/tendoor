@@ -138,11 +138,11 @@ export default function ChecksPage() {
                         <StatePill state={v.state} />
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[140px]">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
-                    <TableCell className="max-w-[200px]"><span className="line-clamp-2">{v.description}</span></TableCell>
+                    <TableCell className="max-w-[140px] whitespace-normal">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
+                    <TableCell className="max-w-[200px] whitespace-normal"><span className="line-clamp-2">{v.description}</span></TableCell>
                     <TableCell className="text-right whitespace-nowrap tabular">{money(v.unit_price_base)} грн/{unitShort(v.base_unit_code)}</TableCell>
-                    <TableCell className="max-w-[170px]"><span className="line-clamp-2" title={v.entity_name}>{v.entity_name}</span></TableCell>
-                    <TableCell className="max-w-[120px]"><span className="line-clamp-2">{v.user_name}</span></TableCell>
+                    <TableCell className="max-w-[170px] whitespace-normal"><span className="line-clamp-2" title={v.entity_name}>{v.entity_name}</span></TableCell>
+                    <TableCell className="max-w-[120px] whitespace-normal"><span className="line-clamp-2">{v.user_name}</span></TableCell>
                     <TableCell className="pr-5 text-muted-foreground" title="Розглянути позицію">
                       <ChevronRight className="size-4" aria-hidden />
                     </TableCell>
