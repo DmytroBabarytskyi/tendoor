@@ -2,6 +2,14 @@ import { motion } from 'motion/react'
 import { num } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+// підписи ознак мовою аудитора (у збережених аналізах можуть лишатися старі назви)
+const LABELS: Record<string, string> = {
+  abs_z: 'Наскільки ціна відхиляється від типової в групі',
+  z: 'Напрям відхилення (дорожче чи дешевше)',
+  log_ratio: 'У скільки разів ціна відрізняється від медіани',
+  is_noise: 'Незвичне поєднання ціни, обсягу й дати',
+}
+
 export type Contribution = { feature: string; label: string; value: number; points: number }
 
 // значення ознаки людською мовою (логарифмічні ознаки — назад у звичайні одиниці)
@@ -45,7 +53,7 @@ export default function Contributions({ items }: { items: Contribution[] }) {
         return (
           <li key={c.feature} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3.5rem] items-center gap-3 text-sm">
             <div className="min-w-0">
-              <div className="truncate">{c.label}</div>
+              <div className="truncate">{LABELS[c.feature] ?? c.label}</div>
               <div className="truncate text-xs text-muted-foreground">{valueText(c)}</div>
             </div>
             <div className="relative h-2.5 rounded-full bg-muted">

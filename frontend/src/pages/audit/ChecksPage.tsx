@@ -6,7 +6,7 @@ import Pagination from '@/components/Pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { dateTime, money, unitShort } from '@/lib/format'
+import { dateTime, money, shortDate, unitShort } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import ItemDrawer from './ItemDrawer'
 import VerdictPill, { StatePill } from './VerdictPill'
@@ -128,18 +128,21 @@ export default function ChecksPage() {
               <TableBody>
                 {items.map((v) => (
                   <TableRow key={v.id} className={cn('cursor-pointer', opened === v.item_id && 'bg-accent/60')} onClick={() => setOpened(v.item_id)}>
-                    <TableCell className="pl-5 whitespace-nowrap text-muted-foreground tabular">{dateTime(v.updated_at)}</TableCell>
+                    <TableCell className="pl-5 text-muted-foreground tabular">
+                      <div className="whitespace-nowrap">{shortDate(v.updated_at)}</div>
+                      <div className="text-xs">{dateTime(v.updated_at).slice(11)}</div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
                         <VerdictPill status={v.status} />
                         <StatePill state={v.state} />
                       </div>
                     </TableCell>
-                    <TableCell className="min-w-[140px]">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
-                    <TableCell className="max-w-[240px]"><span className="line-clamp-2">{v.description}</span></TableCell>
+                    <TableCell className="max-w-[140px]">{v.reason ? VERDICT_REASON[v.reason] : '—'}</TableCell>
+                    <TableCell className="max-w-[200px]"><span className="line-clamp-2">{v.description}</span></TableCell>
                     <TableCell className="text-right whitespace-nowrap tabular">{money(v.unit_price_base)} грн/{unitShort(v.base_unit_code)}</TableCell>
-                    <TableCell className="max-w-[200px]"><span className="line-clamp-2" title={v.entity_name}>{v.entity_name}</span></TableCell>
-                    <TableCell className="max-w-[160px] truncate">{v.user_name}</TableCell>
+                    <TableCell className="max-w-[170px]"><span className="line-clamp-2" title={v.entity_name}>{v.entity_name}</span></TableCell>
+                    <TableCell className="max-w-[120px]"><span className="line-clamp-2">{v.user_name}</span></TableCell>
                     <TableCell className="pr-5 text-muted-foreground" title="Розглянути позицію">
                       <ChevronRight className="size-4" aria-hidden />
                     </TableCell>

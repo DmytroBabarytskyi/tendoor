@@ -394,13 +394,13 @@ export default function ResultPage() {
                       >
                         {ratio(r.price_ratio)}
                       </TableCell>
-                      <TableCell className="max-w-[260px]">
+                      <TableCell className="max-w-[220px]">
                         <span className="line-clamp-2">{r.description}</span>
                       </TableCell>
                       <TableCell>
                         <VerdictPill status={r.verdict_status} state={r.verdict_state} />
                       </TableCell>
-                      <TableCell className="max-w-[220px] pr-5">
+                      <TableCell className="max-w-[190px] pr-5">
                         <span className="line-clamp-2" title={r.entity_name}>{r.entity_name}</span>
                         <a
                           href={`https://prozorro.gov.ua/tender/${r.tender_code}`}
